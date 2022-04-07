@@ -15,7 +15,7 @@ dependencies:
       - pybind11
       - setuptools==50.3.2
       # learning dependencies
-      - gym
+      - gym==0.21.0
       - stable_baselines
       # CommonRoad packages
       - commonroad-io==2021.4
