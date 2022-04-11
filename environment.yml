@@ -18,7 +18,7 @@ dependencies:
       - gym==0.21.0
       - stable_baselines
       # CommonRoad packages
-      - commonroad-io==2021.4
+      - commonroad-io==2022.1
       - commonroad-vehicle-models
       - commonroad-route-planner==2022.1
       # Evaluation dependencies
