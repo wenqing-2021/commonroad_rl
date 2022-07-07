@@ -336,6 +336,7 @@ class CommonroadEnv(gym.Env):
             initial_state=self.ego_action.vehicle.state
         )
         ego_obstacle.draw(self.cr_render, draw_params=ParamServer({
+            "time_begin": self.current_step,
             "dynamic_obstacle": {
                 "draw_icon": True,
                 "vehicle_shape": {
