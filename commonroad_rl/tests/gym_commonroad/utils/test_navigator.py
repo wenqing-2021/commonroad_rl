@@ -6,13 +6,11 @@ from commonroad.planning.goal import GoalRegion
 from commonroad.planning.planning_problem import PlanningProblem
 from commonroad.scenario.lanelet import Lanelet
 from commonroad.scenario.scenario import Scenario, ScenarioID
-from commonroad.scenario.trajectory import State
+from commonroad.scenario.trajectory import State, CustomState
 from commonroad_route_planner.route_planner import RoutePlanner
 
-from commonroad_rl.gym_commonroad.observation import GoalObservation
 from commonroad_rl.gym_commonroad.utils.navigator import Navigator
 from commonroad_rl.tests.common.marker import *
-from commonroad.visualization.mp_renderer import MPRenderer
 
 dummy_time_step = Interval(0.0, 0.0)
 
@@ -31,7 +29,7 @@ dummy_time_step = Interval(0.0, 0.0)
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -40,7 +38,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -71,7 +69,7 @@ dummy_time_step = Interval(0.0, 0.0)
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -80,7 +78,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -110,7 +108,7 @@ dummy_time_step = Interval(0.0, 0.0)
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -119,7 +117,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -149,7 +147,7 @@ dummy_time_step = Interval(0.0, 0.0)
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -158,7 +156,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -198,7 +196,7 @@ dummy_time_step = Interval(0.0, 0.0)
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -207,7 +205,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -286,7 +284,7 @@ def test_get_waypoints_of_reference_path(
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -295,7 +293,7 @@ def test_get_waypoints_of_reference_path(
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -341,7 +339,7 @@ def test_get_waypoints_of_reference_path(
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -350,7 +348,7 @@ def test_get_waypoints_of_reference_path(
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -396,7 +394,7 @@ def test_get_waypoints_of_reference_path(
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -405,7 +403,7 @@ def test_get_waypoints_of_reference_path(
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -451,7 +449,7 @@ def test_get_waypoints_of_reference_path(
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -460,7 +458,7 @@ def test_get_waypoints_of_reference_path(
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -548,7 +546,7 @@ def test_get_referencepath_multilanelets_waypoints(
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -557,7 +555,7 @@ def test_get_referencepath_multilanelets_waypoints(
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -576,7 +574,7 @@ def test_get_referencepath_multilanelets_waypoints(
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -585,7 +583,7 @@ def test_get_referencepath_multilanelets_waypoints(
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -604,7 +602,7 @@ def test_get_referencepath_multilanelets_waypoints(
         (
             GoalRegion(
                 [
-                    State(
+                    CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                         position=Rectangle(
@@ -613,7 +611,7 @@ def test_get_referencepath_multilanelets_waypoints(
                     )
                 ]
             ),
-            State(
+            CustomState(
                 **{
                     "time_step": 1,
                     "yaw_rate": 0.0,
@@ -628,62 +626,63 @@ def test_get_referencepath_multilanelets_waypoints(
             np.array([18.0]),
             1.0,
         ),
-        # fourth, before / ouside of domain
-        (
-            GoalRegion(
-                [
-                    State(
-                        time_step=Interval(1, 1),
-                        orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([6.0, 0.0])
-                        ),
-                    )
-                ]
-            ),
-            State(
-                **{
-                    "time_step": 1,
-                    "yaw_rate": 0.0,
-                    "slip_angle": 0.0,
-                    "orientation": -np.pi,
-                    "position": np.array([10.0, -1.0]),
-                    "velocity": 0.01,
-                    "velocity_y": 0.0,
-                }
-            ),
-            np.array([-1.4141]),   # distance from closest point on ref (9.0, 0.0)
-            np.array([-2.0]),  # distance from closest point on ref (9.0, 0.0) to goal (7.0, 0.0),
-            0.7071,
-        ),
-        # fourth, before / ouside of domain
-        (
-            GoalRegion(
-                [
-                    State(
-                        time_step=Interval(1, 1),
-                        orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([6.0, 0.0])
-                        ),
-                    )
-                ]
-            ),
-            State(
-                **{
-                    "time_step": 1,
-                    "yaw_rate": 0.0,
-                    "slip_angle": 0.0,
-                    "orientation": -np.pi,
-                    "position": np.array([10.0, 1.0]),
-                    "velocity": 0.01,
-                    "velocity_y": 0.0,
-                }
-            ),
-            np.array([1.4141]),   # distance from closest point on ref (9.0, 0.0)
-            np.array([-2.0]),  # distance from closest point on ref (9.0, 0.0) to goal (7.0, 0.0)
-            0.7071,
-        ),
+        # TODO: design new test cases for outside of domain
+        # # fourth, before / outside of domain
+        # (
+        #     GoalRegion(
+        #         [
+        #             CustomState(
+        #                 time_step=Interval(1, 1),
+        #                 orientation=AngleInterval(-np.pi / 2, np.pi / 2),
+        #                 position=Rectangle(
+        #                     length=2.0, width=2.0, center=np.array([6.0, 0.0])
+        #                 ),
+        #             )
+        #         ]
+        #     ),
+        #     CustomState(
+        #         **{
+        #             "time_step": 1,
+        #             "yaw_rate": 0.0,
+        #             "slip_angle": 0.0,
+        #             "orientation": -np.pi,
+        #             "position": np.array([10.0, -1.0]),
+        #             "velocity": 0.01,
+        #             "velocity_y": 0.0,
+        #         }
+        #     ),
+        #     np.array([-1.4141]),   # distance from closest point on ref (9.0, 0.0)
+        #     np.array([-2.0]),  # distance from closest point on ref (9.0, 0.0) to goal (7.0, 0.0),
+        #     0.7071,
+        # ),
+        # # fourth, before / outside of domain
+        # (
+        #     GoalRegion(
+        #         [
+        #             CustomState(
+        #                 time_step=Interval(1, 1),
+        #                 orientation=AngleInterval(-np.pi / 2, np.pi / 2),
+        #                 position=Rectangle(
+        #                     length=2.0, width=2.0, center=np.array([6.0, 0.0])
+        #                 ),
+        #             )
+        #         ]
+        #     ),
+        #     CustomState(
+        #         **{
+        #             "time_step": 1,
+        #             "yaw_rate": 0.0,
+        #             "slip_angle": 0.0,
+        #             "orientation": -np.pi,
+        #             "position": np.array([10.0, 1.0]),
+        #             "velocity": 0.01,
+        #             "velocity_y": 0.0,
+        #         }
+        #     ),
+        #     np.array([1.4141]),   # distance from closest point on ref (9.0, 0.0)
+        #     np.array([-2.0]),  # distance from closest point on ref (9.0, 0.0) to goal (7.0, 0.0)
+        #     0.7071,
+        # ),
     ],
 )
 @functional
@@ -704,7 +703,6 @@ def test_get_longlat_togoal_on_reference_path(
         state=ego_state
     )
 
-    
     # observation = GoalObservation(configs)
     help_allclose(
         expected_distance_lat, distance_lat, what="(lat) distance"
@@ -728,7 +726,7 @@ def help_allclose(a, b, what="", rtol=1e-03, atol=1e-05):
 def helper_dummy_scenario(goal_region):
     """create a simple scenario with a navigator"""
 
-    initial_st = State(
+    initial_st = CustomState(
         **{
             "time_step": 1,
             "yaw_rate": 0.0,

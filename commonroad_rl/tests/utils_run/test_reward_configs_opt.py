@@ -51,7 +51,7 @@ def test_optimize_reward_configs(env_id):
         f"--n-jobs 1 "
         f"--n-timesteps {num_of_steps} "
         f"--eval-freq 500 "
-        f"--eval-episodes 3 "
+        f"--eval_episodes 3 "
         f"--n_envs 2 "
         f"--env {env_id} "
         f"--log-folder {log_path} "

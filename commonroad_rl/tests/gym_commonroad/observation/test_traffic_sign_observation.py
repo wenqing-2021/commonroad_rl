@@ -3,7 +3,7 @@ import pickle
 import commonroad_dc.pycrcc as pycrcc
 import numpy as np
 from commonroad.scenario.scenario import ScenarioID
-from commonroad.scenario.trajectory import State
+from commonroad.scenario.trajectory import CustomState
 from commonroad_dc.collision.collision_detection.pycrcc_collision_dispatch import create_collision_object
 
 from commonroad_rl.gym_commonroad.action.vehicle import ContinuousVehicle
@@ -98,7 +98,7 @@ def test_get_traffic_sign_on_lanelets(ego_position, traffic_sign_expected, dista
     Test for traffic sign observation
     """
     # set ego vehicle
-    ego_state = State(**{"time_step": 0, "position": ego_position, "orientation": 0, "velocity": 0})
+    ego_state = CustomState(**{"time_step": 0, "position": ego_position, "orientation": 0, "velocity": 0})
     ego_vehicle = ContinuousVehicle({"vehicle_type": 2, "vehicle_model": 2})
     ego_vehicle.reset(ego_state, dt=0.1)
 

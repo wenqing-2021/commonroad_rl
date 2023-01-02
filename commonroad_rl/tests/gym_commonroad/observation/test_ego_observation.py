@@ -1,7 +1,7 @@
 import numpy as np
 from commonroad.common.solution import VehicleModel
 from commonroad.scenario.lanelet import Lanelet
-from commonroad.scenario.trajectory import State
+from commonroad.scenario.trajectory import CustomState
 
 from commonroad_rl.gym_commonroad.action.action import ContinuousAction
 from commonroad_rl.gym_commonroad.observation import EgoObservation
@@ -72,7 +72,7 @@ def test_get_lane_relative_heading(ego_angle, expected_output):
         "slip_angle": 0.0,
         "time_step": 0.0,
     }
-    ego_vehicle_state = State(**dummy_state, orientation=ego_angle)
+    ego_vehicle_state = CustomState(**dummy_state, orientation=ego_angle)
     ego_vehicle_lanelet = Lanelet(
         np.array([[0.0, 1.0], [1.0, 1.0]]),
         np.array([[0.0, 0.0], [1.0, 0.0]]),
@@ -115,9 +115,9 @@ def test_ego_state(velocity, steering_angle, vehicle_model, expected_output):
 
     vehicle_action = ContinuousAction(vehicle_params, action_configs)
     if vehicle_params["vehicle_model"] == 2:  # VehicleModel.KS
-        initial_state = State(**dummy_state_ks, velocity=velocity, steering_angle=steering_angle, )
+        initial_state = CustomState(**dummy_state_ks, velocity=velocity, steering_angle=steering_angle, )
     else:  # VehicleModel.PM
-        initial_state = State(**dummy_state_pm, velocity=velocity[0], velocity_y=velocity[1])
+        initial_state = CustomState(**dummy_state_pm, velocity=velocity[0], velocity_y=velocity[1])
     vehicle_action.reset(initial_state, dt=1.0)
 
     # Not to do anything, just continue the way with the given velocity
@@ -162,7 +162,7 @@ def test_ego_state(velocity, steering_angle, vehicle_model, expected_output):
 def test_check_friction_violation(vehicle_model, action, velocity, steering_angle, expected_output):
     vehicle_params = {
         "vehicle_type": 2,  # VehicleType.BMW_320i
-        "vehicle_model": vehicle_model,  # 0: VehicleModel.PM; 2: VehicleModel.KS;
+        "vehicle_model": vehicle_model.value,  # 0: VehicleModel.PM; 2: VehicleModel.KS;
     }
     action_configs = {
         "action_type": "continuous", # discrete
@@ -171,13 +171,13 @@ def test_check_friction_violation(vehicle_model, action, velocity, steering_angl
         "lat_steps": 5,
 
     }
-    ego_observation = construct_ego_observation(vehicle_model)
+    ego_observation = construct_ego_observation(vehicle_model.value)
 
     vehicle_action = ContinuousAction(vehicle_params, action_configs)
-    if vehicle_params["vehicle_model"] == VehicleModel.KS:
-        initial_state = State(**dummy_state_ks, velocity=velocity, steering_angle=steering_angle, )
+    if vehicle_params["vehicle_model"] == VehicleModel.KS.value:
+        initial_state = CustomState(**dummy_state_ks, velocity=velocity, steering_angle=steering_angle, )
     else:  # VehicleModel.PM
-        initial_state = State(**dummy_state_pm, velocity=velocity[0], velocity_y=velocity[1])
+        initial_state = CustomState(**dummy_state_pm, velocity=velocity[0], velocity_y=velocity[1])
     vehicle_action.reset(initial_state, dt=1.0)
 
     steps = 5

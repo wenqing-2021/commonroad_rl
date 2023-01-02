@@ -4,7 +4,7 @@ env_configs:
   # vehicle model and types
   vehicle_params:
     vehicle_type: 2  # 1: FORD_ESCORT; 2: BMW_320i; 3: VW_VANAGON
-    vehicle_model: 4  # 0: PM, 1: ST, 2: KS, 3: MB, 4: YawRate
+    vehicle_model: 6  # 0: PM, 1: ST, 2: KS, 3: MB, 4: KST, 5: YawRate, 6: QP, 7: PMNonlinear (1,3,4 are not implemented)
 
   # action configuration
   action_configs:
@@ -13,7 +13,7 @@ env_configs:
     long_steps: 5
     lat_steps: 5
     planning_horizon: 1. # unit [s]
-    continuous_collision_checking: True # TODO: SUMO scenarios do not support continuous collision check
+    continuous_collision_checking: False # True # TODO: SUMO scenarios do not support continuous collision check
 
   # Flatten observation into a vector for NN input
   flatten_observation: True
@@ -24,13 +24,19 @@ env_configs:
   # performance
   cache_navigators: False # use for large scenarios like Hhr
 
+  # Evaluate collision type during training
+  check_collision_type: False
+  lane_change_time_threshold: 2. # unit [s]
+
   # Ego-related observation flags and settings
   ego_configs:
     observe_v_ego: True
     observe_a_ego: True
+    observe_jerk_ego: True # jerk for QP vehicle model
     observe_relative_heading: True
     observe_steering_angle: False
-    observe_global_turn_rate: True
+    observe_global_turn_rate: True # yaw_rate; kappa_dot for QP vehicle model
+    observe_slip_angle: True # kappa for QP vehicle model
     observe_remaining_steps: True
     # Termination-related observation flags and settings
     observe_is_friction_violation: True
@@ -53,25 +59,25 @@ env_configs:
     observe_dynamic_extrapolated_positions: False
     dynamic_extrapolation_samples: [ 0.1, 0.25, 1, 2 ]
     # Navigator Route Observations:
-    observe_route_reference_path: False
+    observe_route_reference_path: True
     distances_route_reference_path: [-1000, 0, 5, 15, 100]
     observe_route_multilanelet_waypoints: False
     distances_and_ids_multilanelet_waypoints: [[-1000, 0, 1000], [0, 1]]
-    observe_distance_togoal_via_referencepath: False
+    observe_distance_togoal_via_referencepath: True
           
 
   # Goal-related observation flags and settings
   goal_configs:
     # Regard goal as reached if goal position shape is reached
     # TODO: remove after other goal observations (velocity interval and orientation interval) are implemented
-    relax_is_goal_reached: False
+    relax_is_goal_reached: True
     # goal observations
     observe_distance_goal_long: True
     observe_distance_goal_lat: True
     observe_distance_goal_long_lane: False
     observe_distance_goal_time: True
-    observe_distance_goal_orientation: True #False
-    observe_distance_goal_velocity: True #False
+    observe_distance_goal_orientation: False #True #False
+    observe_distance_goal_velocity: False #False
     observe_euclidean_distance: False
 
     # Termination-related observation flags and settings
@@ -80,6 +86,10 @@ env_configs:
 
   # Surrounding-related observation flags and settings
   surrounding_configs:
+    dummy_rel_vel: 0.
+    dummy_dist_rate: 0.
+    dummy_dist: 500.
+    dummy_dist_intersection: 50.
     observe_is_collision: True
     observe_lane_change: True
     observe_vehicle_type: False
@@ -95,7 +105,7 @@ env_configs:
 
     # Circular
     observe_lane_circ_surrounding: True
-    lane_circ_sensor_range_radius: 100.
+    lane_circ_sensor_range_radius: 500.
 
     # Traffic rule related:
     observe_relative_priority: False
@@ -104,6 +114,11 @@ env_configs:
     observe_lidar_circle_surrounding: False
     lidar_circle_num_beams: 20
     lidar_sensor_radius: 50.
+
+    # Intersection-based observation of velocities and distances
+    observe_intersection_distances: False #only selectable with inD data
+    observe_intersection_velocities: False #only selectable with inD data
+    observe_ego_distance_intersection: False #only selectable with inD data
 
   traffic_sign_configs:
     observe_stop_sign: False
@@ -117,8 +132,8 @@ env_configs:
     render_ego_lanelet_center_vertices: False # whether to render the center vertices of the ego lane
     # whether to colorize detected surrounding obstacles in
     # (lane-based rectangle, lane-based circle, lidar-based) detection methods
-    render_surrounding_obstacles_lane_based: False
-    render_lidar_circle_surrounding_obstacles: False
+    render_surrounding_obstacles_lane_based: True
+    render_lidar_circle_surrounding_obstacles: True
     # whether to render the sensing area/lidar beams in the three detection methods
     render_surrounding_area: False
     render_lidar_circle_surrounding_beams: False
@@ -133,65 +148,60 @@ env_configs:
     render_skip_timesteps: 1
     render_combine_frames: False
     # set plot limits to follow current ego position
-    render_follow_ego: True
+    render_follow_ego: False
     render_range: [100., 15.]
 
-  reward_type: hybrid_reward # p: sparse_reward
+  reward_type: hybrid_reward # hybrid_reward # p: sparse_reward
   # Reward settings
 
   # HYBRID REWARD
-  reward_configs_hybrid:
-    # Termination related
+  reward_configs:
+    hybrid_reward:
+      # Termination related
+      reward_goal_reached: 2000.
+      reward_collision: -1000.
+      reward_off_road: -1000.
+      reward_time_out: -200.
+      reward_friction_violation: 0.0 # -10.
+      # reward for termininating close to goal
+      reward_long_distance_reference_path: 2.0
 
-    reward_goal_reached: 2000.
-    reward_collision: -1000.
-    reward_off_road: -1000.
-    reward_time_out: -100.
-    reward_friction_violation: 0.0 # -10.
-    # reward for termininating close to goal
-    reward_long_distance_reference_path: 0.0
+      # Goal related
+      reward_closer_to_goal_long: 10.
+      reward_closer_to_goal_lat: 10.
+      reward_get_close_goal_time: 1. #0.
+      reward_close_goal_orientation: 5. #0.
+      reward_close_goal_velocity: 1. #0.
+      reward_same_lane_goal: 20.
 
-    # Goal related
-    reward_closer_to_goal_long: 5.
-    reward_closer_to_goal_lat: 5.
-    reward_get_close_goal_time: 1. #0.
-    reward_close_goal_orientation: 1. #0.
-    reward_close_goal_velocity: 1. #0.
+      # Safe driving
+      reward_reverse_driving: 0.
+      reward_safe_distance_coef: -1.
 
-    # Safe driving
-    reward_reverse_driving: 0.
-    reward_safe_distance_coef: -1.
+      # Comfort
+      reward_jerk_long: 0. #0.05
+      reward_jerk_lat: 0. #0.1
 
-    # Comfort
-    reward_jerk_long: 0. #0.05
-    reward_jerk_lat: 0. #0.1
+      #Traffic signs and rules:
+      stop_sign_vel_zero: 0. #5.
+      reward_stop_sign_vel: 0. #-0.5 # -15.
+      reward_stop_sign_acc: 0. #1. # 5.
 
-    #Traffic signs and rules:
-    stop_sign_vel_zero: 0. #5.
-    reward_stop_sign_vel: 0. #-0.5 # -15.
-    reward_stop_sign_acc: 0. #1. # 5.
+      # Inactive
+      reward_stay_in_road_center: 0. #0.1
+      reward_friction: 0. # 0.06
+      reward_lateral_velocity: 0. # -50.
 
-    # Inactive
-    reward_stay_in_road_center: 0. #0.1
-    reward_friction: 0. # 0.06
-    reward_lateral_velocity: 0. # -50.
+      # Reference Path
+      reward_lat_distance_reference_path: 0.5 #0.3
+      reward_orientation_to_ref: 10.
 
-    # Reference Path
-    reward_lat_distance_reference_path: 0. #0.3
-
-  # DENSE REWARD
-  reward_configs_dense:
-    reward_obs_distance_coefficient: 0.1
-    reward_goal_distance_coefficient: 0.2
-
-  # SPARSE REWARD
-  reward_configs_sparse:
-    reward_goal_reached: 50.
-    reward_collision: -50.
-    reward_off_road: -50.
-    reward_time_out: -10.
-    reward_friction_violation: 0.
-
+    sparse_reward:
+      reward_goal_reached: 100.
+      reward_collision: -50.
+      reward_off_road: -50.
+      reward_time_out: -10.
+      reward_friction_violation: 0.
 
   termination_configs:
     # TERMINATIONS
@@ -389,6 +399,7 @@ sensititvity_analysis_bounds:
   right_road_edge_distance: [-10, 10]
   lat_offset: [-10, 10]
   lane_curvature: [-10, 10]
+  lane_change: [False, True]
   distance_goal_long_lane: [0, 150]
   euclidean_distance: [0, 150]
   lane_rect_sensor_range_length: [0, 100]

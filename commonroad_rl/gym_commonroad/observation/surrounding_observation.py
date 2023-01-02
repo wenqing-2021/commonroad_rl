@@ -7,8 +7,8 @@ import numpy as np
 from commonroad.common.util import make_valid_orientation
 from commonroad.geometry.shape import Polygon, Rectangle
 from commonroad.scenario.lanelet import Lanelet, LaneletType
-from commonroad.scenario.trajectory import Trajectory
-from commonroad.scenario.obstacle import State, Obstacle, SignalState, ObstacleRole, ObstacleType
+from commonroad.scenario.trajectory import Trajectory, State, CustomState
+from commonroad.scenario.obstacle import Obstacle, SignalState, ObstacleRole, ObstacleType, StaticObstacle
 from commonroad.scenario.scenario import Scenario
 from commonroad.visualization.mp_renderer import MPRenderer, ZOrders
 from commonroad.visualization.util import LineDataUnits
@@ -22,14 +22,18 @@ from commonroad_rl.gym_commonroad.action.vehicle import Vehicle
 from commonroad_rl.gym_commonroad.observation.observation import Observation
 from commonroad_rl.gym_commonroad.utils.scenario import approx_orientation_vector
 from commonroad_rl.gym_commonroad.utils.navigator import Navigator
+from commonroad_rl.gym_commonroad.utils.conflict_zone import ConflictZone
 
 
 class SurroundingObservation(Observation):
 
     def __init__(self, configs: Dict, config_name: str = "surrounding_configs"):
         # Read configs
-        hybrid_reward_configs = configs["reward_configs_hybrid"]
+        
+        hybrid_reward_configs = configs["reward_configs"]["hybrid_reward"]
+        
         configs = configs[config_name]
+
         self.observe_is_collision: bool = configs.get("observe_is_collision", True)
 
         self.observe_vehicle_type: bool = configs.get("observe_vehicle_type", False)
@@ -52,6 +56,12 @@ class SurroundingObservation(Observation):
 
         self.observe_relative_priority: bool = configs.get("observe_relative_priority", False)
 
+        self.observe_intersection_velocities = configs.get("observe_intersection_velocities", False)
+        self.observe_intersection_distances = configs.get("observe_intersection_distances", False)
+        self.observe_ego_distance_intersection = configs.get("observe_ego_distance_intersection", False)
+        self.dummy_dist_intersection:float =  configs.get("dummy_dist_intersection",50.)
+
+
         self.max_obs_dist: float = 0.0
         if self.observe_lane_circ_surrounding:
             self.max_obs_dist = self.lane_circ_sensor_range_radius
@@ -65,6 +75,7 @@ class SurroundingObservation(Observation):
                     self.observe_lane_circ_surrounding]) <= 1, "Only one kind of surrounding observation can be active!"
 
         self.reward_safe_distance_coef: float = hybrid_reward_configs.get("reward_safe_distance_coef")
+        
 
         self._local_ccosy = None
         self._scenario: Scenario = None
@@ -116,6 +127,17 @@ class SurroundingObservation(Observation):
         if self.observe_is_collision:
             observation_space_dict["is_collision"] = gym.spaces.Box(0, 1, (1,), dtype=np.float32)
 
+        if self.observe_intersection_velocities:
+            observation_space_dict["intersection_velocities"] = gym.spaces.Box(-np.inf, np.inf, (6,), dtype=np.float32)
+
+        if self.observe_intersection_distances:
+            observation_space_dict["intersection_distances"] = gym.spaces.Box(-self.dummy_dist_intersection,
+                                                                              self.dummy_dist_intersection, (6,),
+                                                                              dtype=np.float32)
+        if self.observe_ego_distance_intersection:
+            observation_space_dict["ego_distance_intersection"] = gym.spaces.Box(-np.inf, np.inf, (2,),
+                                                                                 dtype=np.float32)
+
         if self.observe_lane_change:
             observation_space_dict["lane_change"] = gym.spaces.Box(0, 1, (1,), dtype=np.float32)
         return observation_space_dict
@@ -123,7 +145,8 @@ class SurroundingObservation(Observation):
     def observe(self, scenario: Scenario, ego_vehicle: Vehicle, time_step: int,
                 connected_lanelet_dict: Union[None, Dict] = None, ego_lanelet: Union[Lanelet, None] = None,
                 collision_checker: Union[None, pycrcc.CollisionChecker] = None,
-                local_ccosy: Union[None, CurvilinearCoordinateSystem] = None,
+                local_ccosy: Union[None, CurvilinearCoordinateSystem] = None, 
+                conflict_zone: ConflictZone = None,
                 ego_lanelet_ids: List[int] = []) -> Union[ndarray, Dict]:
 
         # update scenario and time_step
@@ -177,6 +200,24 @@ class SurroundingObservation(Observation):
             is_collision = self._check_collision(collision_checker, ego_vehicle)
             self.observation_dict["is_collision"] = np.array([is_collision])
 
+        if self.observe_intersection_velocities or self.observe_intersection_distances:
+            if self.observe_lane_circ_surrounding:
+                intersection_observation = conflict_zone.generate_intersection_observation(self.conflict_obstacles_information)
+                if self.observe_intersection_velocities:
+                    self._get_intersection_velocities(intersection_observation)
+
+                if self.observe_intersection_distances:
+                    self._get_intersection_distances(intersection_observation)
+            else:
+                #TODO: Remove this constraint
+                print('ERROR:SurroundingObservation: Intersection observations currently only selectable together '
+                      'with circle lane based observation')
+                raise ValueError
+
+        if self.observe_ego_distance_intersection:
+            s_near, s_far = conflict_zone.get_ego_intersection_observation(self._ego_state.position)
+            self.observation_dict["ego_distance_intersection"] = np.array([s_near, s_far])
+
         return self.observation_dict, ego_vehicle_lat_position
 
     def draw(self, render_configs: Dict, render: MPRenderer, terminated: bool = False):
@@ -209,13 +250,45 @@ class SurroundingObservation(Observation):
 
         if self.observe_lidar_circle_surrounding and render_configs["render_lidar_circle_surrounding_obstacles"]:
             for idx, detection_point in enumerate(self._detection_points):
-                render.dynamic_artists.append(
+                    render.dynamic_artists.append(
                     LineDataUnits(detection_point[0], detection_point[1], color="b", marker="1",
                                   zorder=ZOrders.INDICATOR_ADD, label="surrounding_obstacles_lidar_based"))
 
+        # TODO: add rendering for intersection observations
+        # use conflict_region.draw_conflict_region to highlight region
+        # also highlight detected intersection vehicles
+
+
+    def _get_intersection_velocities(self,intersection_observations: List[State]):
+        """
+        calculates relative velocity observation for intersection vehicles
+        :param intersection_observations: list of intersection obstacle states
+        return: relative velocity observations for intersection vehicles
+        """
+        rel_v = np.zeros((6,))
+        for k in range(len(intersection_observations)):
+            if k < 6:
+                rel_v[k] = intersection_observations[k][1]
+
+        self.observation_dict["intersection_velocities"] = rel_v
+
+    def _get_intersection_distances(self, intersection_observations: List[State]):
+        """
+        calculates relative distance observation for intersection vehicles
+        :param intersection_observations: list of intersection obstacle states
+        return: relative distance observations for intersection vehicles
+        """
+        rel_p = self.dummy_dist_intersection * np.ones((6,))
+        for k in range(len(intersection_observations)):
+            if k < 6:
+                rel_p[k] = min(self.dummy_dist_intersection, intersection_observations[k][0])
+
+        self.observation_dict["intersection_distances"] = rel_p
+
+
     def _get_surrounding_obstacles_lane_based(self, surrounding_area: Union[pycrcc.RectOBB, pycrcc.Circle]) \
             -> Tuple[np.array, List[State], List[Obstacle]]:
-
+       
         lanelet_ids, obstacle_states, obstacles = self._get_obstacles_in_surrounding_area(surrounding_area)
         obstacle_lanelet, adj_obstacle_states, adj_obstacles = \
             self._filter_obstacles_in_adj_lanelet(lanelet_ids, obstacle_states, obstacles, self.all_lanelets_set)
@@ -229,6 +302,13 @@ class SurroundingObservation(Observation):
             self._get_vehicle_types(detected_obstacles)
         if self.observe_vehicle_lights:
             self._get_vehicle_lights(detected_obstacles)
+
+
+        # add self.conflict_obstacles_information
+        detected_states_exclude = [state for state in detected_states if state is not None] # TODO: remove after released cr-io
+        self.conflict_obstacles_information = [state for state in obstacle_states if state not in detected_states_exclude]
+        # if want to include the 6 vehilces that are already detected: comment the above line and uncomment the following line
+        # self.conflict_obstacles_information = [state for state in obstacle_states]
 
         return ego_vehicle_lat_position, detected_states, detected_obstacles
 
@@ -285,7 +365,7 @@ class SurroundingObservation(Observation):
                     obs_occupied_lanelet_id, obstacle_state.orientation, obstacle_state.position, self._scenario)[0]
             elif len(obs_occupied_lanelet_id) == 1:
                 obs_occupied_lanelet_id = obs_occupied_lanelet_id[0]
-            elif obs_occupied_lanelet_id is None:
+            elif len(obs_occupied_lanelet_id) == 0:
                 obstacle_rel_lanelet_priorities.append(0.0)
                 continue
 
@@ -299,6 +379,8 @@ class SurroundingObservation(Observation):
                 obs_t_type = TrajectoryType.LEFT
             elif obstacle_turning_signal.indicator_right:
                 obs_t_type = TrajectoryType.RIGHT
+            # else:
+            #     obs_t_type = TrajectoryType.STRAIGHT
 
             # Classify the obstacle priority based on its trajectory class and signs
             obstacle_lanelet_priority = self._detect_lanelet_priority(obs_lanelet, obs_t_type)
@@ -365,7 +447,7 @@ class SurroundingObservation(Observation):
         dummy_velocity = 1.0
         time_step = 0
         for point in ref_path:
-            state_list.append(State(position=point, velocity=dummy_velocity, time_step=time_step))
+            state_list.append(CustomState(position=point, velocity=dummy_velocity, time_step=time_step))
             time_step += 1
         assert len(state_list) != 0, "ref_path is " + str(ref_path) + " vs before " + str(
             ref_path_before) + " shape: (r,x,y)" + str(traj_area.r()) + " " + str(traj_area.x()) + " " + str(
@@ -570,7 +652,7 @@ class SurroundingObservation(Observation):
         for o in dyn_obstacles:
             # TODO: initial lanelet_assignment missed?
             if o.prediction is not None:
-                # center_lanelet_ids = list(o.prediction.center_lanelet_assignment.values())
+                center_lanelet_ids = list(o.prediction.center_lanelet_assignment.values())
                 if o.initial_state.time_step <= self._current_time_step <= o.prediction.trajectory.final_state.time_step:
                     obstacle_state = o.state_at_time(self._current_time_step)
                     obstacle_point = pycrcc.Point(obstacle_state.position[0], obstacle_state.position[1])
@@ -585,12 +667,11 @@ class SurroundingObservation(Observation):
                             if o_lanelet_id is None:
                                 # neither center or shape locate inside a lanelet
                                 # TODO: skip or take last available time step ??
-                                # non_empty_id_sets = [id_set for id_set in center_lanelet_ids if id_set]
-                                # if len(non_empty_id_sets) == 0:
-                                #     continue
-                                # o_lanelet_id = self._get_occupied_lanelet_id(self._scenario, list(non_empty_id_sets[-1]),
-                                #                                              obstacle_state)
-                                continue
+                                non_empty_id_sets = [id_set for id_set in center_lanelet_ids if id_set]
+                                if len(non_empty_id_sets) == 0:
+                                    continue
+                                o_lanelet_id = self._get_occupied_lanelet_id(self._scenario, list(non_empty_id_sets[-1]),
+                                                                             obstacle_state)
                         lanelet_ids.append(o_lanelet_id)
                         obstacle_states.append(obstacle_state)
                         obstacles.append(o)
@@ -751,7 +832,8 @@ Im        Sets the turning-lights in observation_dict for all observed obstacles
             p_rel_lead: relative position to leading obstacle
             o_lead: state of leading obstacle
         """
-
+        if isinstance(obstacle, StaticObstacle):
+            obs_state.velocity = 0.
         if distance_sign == 1 and distance_abs < p_rel_follow:
             # following vehicle, distance is smaller
             ego_state_orientation = ego_state.orientation if hasattr(ego_state, "orientation") else np.arctan2(

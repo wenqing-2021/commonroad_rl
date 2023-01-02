@@ -242,6 +242,16 @@ class ContinuousAction(Action):
 
             self._rescale_factor = np.array([(yaw_rate_max - yaw_rate_min) / 2., a_max])
             self._rescale_bias = np.array([0., 0.])
+        elif self.vehicle.vehicle_model == VehicleModel.QP:
+            ub, lb = self.vehicle.vehicle_dynamic.input_bounds.ub, self.vehicle.vehicle_dynamic.input_bounds.lb
+            self._rescale_factor = (ub - lb) / 2
+            self._rescale_bias = (ub + lb) / 2
+        elif self.vehicle.vehicle_model == VehicleModel.PMNonlinear:
+            self._rescale_factor = np.array([a_max, 2.]) # TODO: check with Niklas which bounds are used in the reachable sets
+            self._rescale_bias = np.array([0., 0.])
+        else:
+            raise ValueError(
+                f"action.py/_set_rescale_factors: rescale factors not defined for model {self.vehicle.vehicle_model}")
 
     def reset(self, initial_state: State, dt: float) -> None:
         self.vehicle.reset(initial_state, dt)
@@ -270,9 +280,6 @@ class ContinuousAction(Action):
         """
         assert hasattr(self, "_rescale_bias") and hasattr(self, "_rescale_factor"), \
             "<ContinuousAction/rescale_action>: rescale factors not set, please run action.reset() first"
-        # if self.vehicle.vehicle_model == VehicleModel.YawRate:
-        #     # update rescale factors
-        #     self._set_rescale_factors()
 
         return self._rescale_factor * action + self._rescale_bias
 

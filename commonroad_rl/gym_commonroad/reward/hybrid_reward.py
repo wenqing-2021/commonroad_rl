@@ -16,9 +16,9 @@ class HybridReward(Reward):
 
     def __init__(self, configs: dict):
         self.goal_configs = configs["goal_configs"]
-        self.reward_configs = configs["reward_configs_hybrid"]
+        self.reward_configs = configs["reward_configs"]["hybrid_reward"]
         #        self.traffic_sign_configs = configs["traffic_sign_configs"]
-
+        self.lanelet_configs = configs["lanelet_configs"]
         self.surrounding_configs = configs["surrounding_configs"]
         self.max_obs_dist: float = 0.0
         if self.surrounding_configs.get("observe_lane_circ_surrounding", False):
@@ -54,6 +54,10 @@ class HybridReward(Reward):
         if self.reward_configs["reward_reverse_driving"]:
             reward += self.reverse_driving_penalty(ego_action)
 
+        # Same lane as goal
+        if self.reward_configs["reward_same_lane_goal"] > 0.:
+            reward += self.goal_same_lane_reward(observation_dict)
+
         # Distance advancement
         if self.goal_configs["observe_distance_goal_long"] and self.goal_configs["observe_distance_goal_lat"]:
             reward += self.goal_distance_reward(observation_dict)
@@ -86,9 +90,11 @@ class HybridReward(Reward):
         # Traffic rule priority yield reward
         #      if self.reward_configs["yield_reward"]:
         #         reward += self.yield_reward(observation_dict)
-        # Reference Path Reward
-        if self.reward_configs['reward_lat_distance_reference_path']:
-            reward += self.lat_distance_to_reference_path_reward(observation_dict)
+
+
+        # orientation to reference path's orientation reward
+        if self.lanelet_configs["observe_route_reference_path"]:
+           reward+=self. orientation_to_reference_reward(observation_dict)
 
         # TODO: was commented out in original reward, needs to be reworked/removed?
         # penalize running given stop sign
@@ -109,7 +115,6 @@ class HybridReward(Reward):
         # # penalize large lateral velocity using PM model
         # if self.ego_action.vehicle.vehicle_model == VehicleModel.PM:
         #     reward += self.large_lat_velocity_penalty()
-
         return reward
 
     def termination_reward(self, observation_dict: dict) -> float:
@@ -154,6 +159,12 @@ class HybridReward(Reward):
             if not np.isclose(time_to_goal, 0):
                 return min(time_to_goal / goal_time_distance, goal_time_distance / time_to_goal)
         return 0.
+
+    def goal_same_lane_reward(self, observation_dict: dict):
+        if observation_dict["distance_goal_lat"] < 2.:
+            return self.reward_configs["reward_same_lane_goal"]
+        else:
+            return 0.
 
     def goal_time_reward(self, observation_dict: dict, ego_action: Action) -> float:
         """Reward for getting closer to goal time"""
@@ -350,3 +361,12 @@ class HybridReward(Reward):
         elif long < 0:
             # if driven past the goal: penalty
             return - np.log(abs(long) + 1) * self.reward_configs['reward_long_distance_reference_path']
+
+    def orientation_to_reference_reward(self,observation_dict:dict) ->float:
+        """
+        Reward for getting closer to reference orientation
+        ego orientation closer to the reference orientation, larger the reward
+        """
+        # see configs.yaml:  distances_route_reference_path, choose the index that are closest to ego vehicle
+        ori_to_ref_diff = abs(observation_dict["route_reference_path_orientations"][1])
+        return self.reward_configs['reward_orientation_to_ref']* np.exp(-1.0 * ori_to_ref_diff/ np.pi)

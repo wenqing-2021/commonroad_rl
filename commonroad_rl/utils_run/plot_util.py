@@ -418,8 +418,8 @@ def plot_results(
                     ax.fill_between(usex, ymean - ystd, ymean + ystd, color=color, alpha=.2)
 
         # ax.set_xlim([np.min(x) - 1, np.max(x)])
-        ax.set_xlim([np.min(x)-0.005, np.max(x)])
-        print(np.min(x)-0.005)
+#        ax.set_xlim([np.min(x)-0.005, np.max(x)])
+#        print(np.min(x)-0.005)
         if set_y_lim:
             ax.set_ylim([-0.05, 1.05])
 
@@ -440,7 +440,7 @@ def plot_results(
                 #                      bbox_transform=fig.transFigure, fancybox=False, edgecolor="k")
                 # ax.legend(loc=8, bbox_to_anchor=bb, ncol=2, mode="expand", borderaxespad=0,
                 # bbox_transform=f.transFigure, fancybox=False, edgecolor="k")
-                ax.legend(ncol=len(groups),
+                ax.legend(ncol=1, #len(groups),
                           # g2l.values(),
                           # ['%s (%i)'%(g, g2c[g]) for g in g2l] if average_group else g2l.keys(),
                           loc=8 if legend_outside else None, bbox_to_anchor=bb if legend_outside else None,

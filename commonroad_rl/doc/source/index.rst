@@ -46,9 +46,20 @@ Currently, the package can only be installed from the repository. First, clone i
 
 	git clone https://gitlab.lrz.de/tum-cps/commonroad-rl.git
 
-To create an environment for this project including all requirements, run::
+Setup a new conda env (or install packages to an existing conda env e.g. myenv conda env update --name myenv --file environment.yml)
 
    conda env create -n cr37 -f environment.yml
+   git submodule init
+   git submodule update --recursive || exit_with_error "Update submodules failed"
+
+Note that commonroad-interactive-scenarios is only needed if you want to evaluate a trained model on SUMO interactive scenarios. To exclude this module, run git -c submodule."external/commonroad-interactive-scenarios".update=none submodule update --init --recursive instead.
+
+Optional: Install pip packages for the docs. If you want to use the jupyter notebook, also install jupyter.
+
+   source activate cr37
+   pip install -r commonroad_rl/doc/requirements_doc.txt
+   conda install jupyter
+
 
 After the repository is cloned, CommonRoad-RL can be installed without sudo rights with::
 
@@ -64,14 +75,7 @@ This will build all softwares in your home folder. You can press ``ctrl`` + ``c`
 Note that all necessary libraries need to be installed with sudo rights beforehands.
 Please ask your admin to install them for you if they are missing.
 
-(optional) Install pip packages for the docs. If you want to use jupyter notebook for the tutorials, also install jupyter::
-
-   source activate cr37
-   pip install -r commonroad_rl/doc/requirements_doc.txt
-   conda install jupyter
-
-
-Test if installation succeeds
+Test if installation was successful
 ============
 Further details of our test system refer to ``./commonroad_rl/tests``. Run tests::
 

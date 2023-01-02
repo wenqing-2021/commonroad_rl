@@ -49,7 +49,7 @@ def test_optimize_observation_configs(env_id):
         f"--n-jobs 1 "
         f"--n-timesteps {num_of_steps} "
         f"--eval-freq 500 "
-        f"--eval-episodes 3 "
+        f"--eval_episodes 3 "
         f"--env {env_id} "
         f"--log-folder {log_path} "
         f"--sampler {sampler} "

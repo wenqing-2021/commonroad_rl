@@ -13,8 +13,7 @@ from commonroad_rl.gym_commonroad.observation.goal_observation import GoalObserv
 from commonroad_rl.gym_commonroad.utils.navigator import Navigator
 from numpy import ndarray
 import commonroad_dc.pycrcc as pycrcc
-from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
-from commonroad_dc.geometry.util import compute_curvature_from_polyline, compute_pathlength_from_polyline
+from commonroad_dc.geometry.geometry import CurvilinearCoordinateSystem
 from shapely.geometry import Point, LineString
 
 from commonroad_rl.gym_commonroad.utils.scenario import approx_orientation_vector, get_lane_marker
@@ -392,16 +391,12 @@ class LaneletNetworkObservation(Observation):
 
     @staticmethod
     def get_lane_curvature(ego_position: np.array, ccosy: CurvilinearCoordinateSystem):
-        polyline = np.array(ccosy.reference_path())
         try:
             s, _ = ccosy.convert_to_curvilinear_coords(ego_position[0], ego_position[1])
         except ValueError:
             return np.nan
 
-        curvature = compute_curvature_from_polyline(polyline)
-        ref_pos = compute_pathlength_from_polyline(polyline)
-
-        return np.interp(s, ref_pos, curvature)
+        return np.interp(s, ccosy.ref_pos, ccosy.ref_curv)
 
 
 if __name__ == "__main__":

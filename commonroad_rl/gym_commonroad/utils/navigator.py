@@ -17,7 +17,7 @@ import commonroad_dc.pycrccosy as pycrccosy
 from commonroad_dc.geometry.util import resample_polyline, compute_polyline_length
 import commonroad.geometry.shape as cr_shape
 from shapely.geos import LOG
-from shapely.ops import cascaded_union
+from shapely.ops import unary_union
 from shapely.geometry import Polygon
 
 LOGGER = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ class Navigator:
 
     def __init__(self, route: Route):
         # version 2020 # version 06.2021 variables shared
+        assert route is not None
         self.scenario = route.scenario
         self.lanelet_network = self.scenario.lanelet_network
         self.planning_problem = route.planning_problem
@@ -377,7 +378,7 @@ class Navigator:
             return polygon_list
 
         def merge_polygons(polygons_to_merge):
-            return cascaded_union(
+            return unary_union(
                 [
                     geom if geom.is_valid else geom.buffer(0)
                     for geom in polygons_to_merge
@@ -700,7 +701,7 @@ class Navigator:
         returns the distance  [m] to the closest point on the reference path,
         and the distance to the end of the curvilinear cosy
 
-        :param position_ego: position of ego, array of shape (2,)
+        :param state: state of ego
         :return:
             float, longitudinal distance to point of reference path which is closest to goal
             float, distance to reference path

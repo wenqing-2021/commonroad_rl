@@ -11,7 +11,7 @@ class SparseReward(Reward):
     """Class for sparse reward"""
 
     def __init__(self, configs: dict):
-        self.reward_configs = configs["reward_configs_sparse"]
+        self.reward_configs = configs["reward_configs"]["sparse_reward"]
 
     def calc_reward(self, observation_dict: dict, ego_action: Action) -> float:
         """

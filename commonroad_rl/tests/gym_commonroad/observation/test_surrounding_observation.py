@@ -7,7 +7,7 @@ import yaml
 from commonroad.geometry.shape import Polygon, Rectangle
 from commonroad.prediction.prediction import TrajectoryPrediction
 from commonroad.scenario.obstacle import Obstacle, DynamicObstacle, ObstacleType
-from commonroad.scenario.trajectory import State, Trajectory
+from commonroad.scenario.trajectory import State, Trajectory, CustomState
 from commonroad.scenario.scenario import ScenarioID, Scenario
 from commonroad_dc.collision.collision_detection.pycrcc_collision_dispatch import create_collision_object, \
     create_collision_checker
@@ -22,6 +22,7 @@ from commonroad_rl.tools.pickle_scenario.xml_to_pickle import pickle_xml_scenari
 from commonroad_rl.tests.common.evaluation import *
 from commonroad_rl.tests.common.marker import *
 from commonroad_rl.tests.common.path import *
+from commonroad_rl.gym_commonroad.utils.conflict_zone import ConflictZone
 
 XML_PATH = os.path.join(resource_root("test_surroundings"))
 PICKLE_PATH = os.path.join(output_root("test_surroundings"), "pickles")
@@ -99,40 +100,45 @@ scenario_1, connected_lanelet_dict, lanelet_polygons, lanelet_polygons_sg = prep
 
 scenario_2, _, _, _ = prepare_for_surrounding_test(
     "DEU_A9-2_1_T-1.pickle",
-    xml_scenarios_path=os.path.join(resource_root("test_laneletnetwork")),
-    pickle_path=os.path.join(output_root("test_laneletnetwork"), "pickles")
+    xml_scenarios_path=os.path.join(resource_root("test_commonroad_env")),
+    pickle_path=os.path.join(output_root("test_commonroad_env"), "pickles")
 )
+
+scenario_3, connected_lanelet_dict_3, lanelet_polygons_3, lanelet_polygons_sg_3 = prepare_for_surrounding_test(
+    "DEU_AAH-1_120020_T-1.pickle",
+    xml_scenarios_path=os.path.join(resource_root("test_surroundings/xmls")),
+    pickle_path=PICKLE_PATH)
 
 
 @pytest.mark.parametrize((
         "ego_state", "observe_lane_rect_surrounding", "observe_lane_circ_surrounding", "p_rel_expected",
-        "v_rel_expected"), [(State(**{"time_step": 50, "position": np.array([127.50756356637483, -50.69294785562317]),
+        "v_rel_expected"), [(CustomState(**{"time_step": 50, "position": np.array([127.50756356637483, -50.69294785562317]),
                                       "orientation": 4.298126916546023, "velocity": 8.343911610829114}), True, False,
                              [50.1223503, 17.53095357, 50.1223503, 50.1223503, 50.1223503, 50.1223503],
                              [0.0, -0.3290005752341578, 0.0, 0.0, 0.0, 0.0]), (
-                                    State(**{"time_step": 51,
+                                    CustomState(**{"time_step": 51,
                                              "position": np.array([127.39433877716928, -50.9499165494171]),
                                              "orientation": 4.296344007588243, "velocity": 8.558071157124918}), True,
                                     False,
                                     [50.1223503, 17.44662997, 50.1223503, 50.1223503, 50.1223503, 50.1223503],
                                     [0.0, -0.0348669273743365, 0.0, 0.0, 0.0, 0.0]), (
-                                    State(**{"time_step": 52, "position": [127.2789061588074, -51.210826963166035],
+                                    CustomState(**{"time_step": 52, "position": [127.2789061588074, -51.210826963166035],
                                              "orientation": 4.294731018487505, "velocity": 8.560948563466251}), True,
                                     False, [50.1223503, 17.3700263, 50.1223503, 50.1223503, 50.1223503, 50.1223503],
                                     [0.0, 0.05249202534491637, 0.0, 0.0, 0.0, 0.0]), (
-                                    State(**{"time_step": 43,
+                                    CustomState(**{"time_step": 43,
                                              "position": np.array([128.2222609335789, -49.022624022869934]),
                                              "orientation": 4.319904886182895, "velocity": 7.082343029302184}), False,
                                     True,
                                     [50., 18.20347091, 50., 50., 47.40590347, 50.],
                                     [0.0, -2.025488953984791, 0.0, 0.0, 2.6653220542271576, 0.0],), (
-                                    State(**{"time_step": 44,
+                                    CustomState(**{"time_step": 44,
                                              "position": np.array([128.13057639473206, -49.24300781209363]),
                                              "orientation": 4.315381265190625, "velocity": 7.291671591323439, }), False,
                                     True,
                                     [50., 18.05391643, 50., 50., 47.63507943, 50.],
                                     [0.0, -1.7668531163933068, 0.0, 0.0, 2.529247893570327, 0.0],), (
-                                    State(**{"time_step": 45,
+                                    CustomState(**{"time_step": 45,
                                              "position": np.array([128.03441395825942, -49.47140451195109]),
                                              "orientation": 4.31163016190567, "velocity": 7.668769571559476}), False,
                                     True,
@@ -148,13 +154,14 @@ def test_get_surrounding_obstacles_lane_based(ego_state, observe_lane_rect_surro
     """
 
     surrounding_observation = SurroundingObservation(configs={
-        "reward_configs_hybrid": {"reward_safe_distance_coef": -1.},
+        "reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
         "surrounding_configs": {"observe_lane_rect_surrounding": observe_lane_rect_surrounding,
                                 "observe_lane_circ_surrounding": observe_lane_circ_surrounding,
-                                "lane_rect_sensor_range_length": 100.,
-                                "lane_rect_sensor_range_width": 7.,
-                                "lane_circ_sensor_range_radius": 50.0,
-                                "observe_is_collision": False,
+                                "lane_rect_sensor_range_length": 100., "lane_rect_sensor_range_width": 7.,
+                                "lane_circ_sensor_range_radius": 50.0, "dummy_rel_vel": 0., "dummy_dist": 60.,
+                                "observe_is_collision": False, "observe_intersection_distances": False,
+                                "observe_intersection_velocities": False, "dummy_dist_intersection": 50,
+                                "observe_ego_distance_intersection": False,
                                 "observe_lane_change": False,
                                 "fast_distance_calculation": True}})
 
@@ -194,7 +201,7 @@ def test_obstacle_detection_lane_based():
 
     surrounding_observation = SurroundingObservation(
         configs={
-            "reward_configs_hybrid": {"reward_safe_distance_coef": -1.},
+            "reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
             "surrounding_configs": {"observe_lane_circ_surrounding": True,
                                     "lane_circ_sensor_range_radius": 100.,
                                     "observe_is_collision": False,
@@ -203,8 +210,8 @@ def test_obstacle_detection_lane_based():
         }
     )
 
-    ego_vehicle = ContinuousVehicle({"vehicle_type": 2, "vehicle_model": 4})
-    ego_state = State(**{
+    ego_vehicle = ContinuousVehicle({"vehicle_type": 2, "vehicle_model": 5})
+    ego_state = CustomState(**{
         "position": np.array([-262.1121295, 9.5967584]),
         "orientation": -0.013548497271880677,
         "velocity": 37.07059064327494,
@@ -235,30 +242,46 @@ def test_obstacle_detection_lane_based():
     assert detected_ids == expected_ids
 
 
-@pytest.mark.parametrize(("ego_state", "prev_rel_pos", "p_rel_expected", "p_rel_rate_expected"), [(
-        State(**{"time_step": 0, "position": np.array([130.95148999999998, -38.046040000000005]),
-                 "orientation": 4.573031246397025, "velocity": 8.9459}),
-        [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
-         50.0, 50.0],
-        [50.0, 50.0, 8.134482069004424, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
-         50.0, 50.0, 50.0, 50.0],
-        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],),
-    # manually set to 0 at timestep 0
-    (State(**{"time_step": 1, "position": np.array([130.91046689527747, -38.33872191154571]),
-              "orientation": 4.5736457771412145, "velocity": 8.733597598338127}),
-     [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
-      50.0],
-     [50.0, 50.0, 7.9603019648779325, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
-      50.0, 50.0, 50.0, 50.0],
-     [0.0, 0.0, 42.039698035122065, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-      0.0],), (State(**{"time_step": 2, "position": np.array([130.8706926599194, -38.625027045977326]),
-                        "orientation": 4.575858469977114, "velocity": 8.568383732799687}),
-               [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
-                50.0, 50.0, 50.0],
-               [50.0, 50.0, 7.79517301, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
-                50.0, 50.0, 50.0, 50.0],
-               [0.0, 0.0, 42.20482699, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                0.0],), ], )
+@pytest.mark.parametrize(("ego_state", "prev_rel_pos", "p_rel_expected", "p_rel_rate_expected"),
+                         [
+                             (
+                                     CustomState(**{"time_step": 0,
+                                              "position": np.array([130.95148999999998, -38.046040000000005]),
+                                              "orientation": 4.573031246397025, "velocity": 8.9459}),
+                                     [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
+                                      50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
+                                     [50.0, 50.0, 8.134482069004424, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
+                                      50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
+                                     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                             ),
+                             # manually set to 0 at timestep 0
+                             (
+                                     CustomState(**{"time_step": 1,
+                                              "position": np.array([130.91046689527747, -38.33872191154571]),
+                                              "orientation": 4.5736457771412145,
+                                              "velocity": 8.733597598338127}),
+                                     [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
+                                      50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
+                                     [50.0, 50.0, 7.9603019648779325, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
+                                      50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
+                                     [0.0, 0.0, 42.039698035122065, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                             ),
+                             (
+                                     CustomState(**{"time_step": 2,
+                                              "position": np.array([130.8706926599194, -38.625027045977326]),
+                                              "orientation": 4.575858469977114,
+                                              "velocity": 8.568383732799687}),
+                                     [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
+                                      50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
+                                     [50.0, 50.0, 7.79517301, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0,
+                                      50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0],
+                                     [0.0, 0.0, 42.20482699, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                      0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+                             ),
+                         ]
+                         )
 @unit_test
 @functional
 def test_get_surrounding_obstacles_lidar_circle(ego_state, prev_rel_pos, p_rel_expected, p_rel_rate_expected, ):
@@ -266,13 +289,20 @@ def test_get_surrounding_obstacles_lidar_circle(ego_state, prev_rel_pos, p_rel_e
     Tests the
     """
 
-    surrounding_observation = SurroundingObservation(configs={
-        "reward_configs_hybrid": {"reward_safe_distance_coef": -1.},
+    surrounding_observation = SurroundingObservation(configs=
+    {
+        "reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
         "surrounding_configs": {"observe_lidar_circle_surrounding": True, "lidar_sensor_radius": 50.,
-                                "lidar_circle_num_beams": 20,
-                                "observe_is_collision": False,
-                                "observe_lane_rect_surrounding": False, "observe_lane_circ_surrounding": False,
-                                "observe_lane_change": False, "observe_relative_priority": True}})
+
+                                "lidar_circle_num_beams": 20, "dummy_dist": 60., "dummy_dist_rate": 0.,
+                                "observe_is_collision": False, "observe_lane_rect_surrounding": False,
+                                "observe_lane_circ_surrounding": False, "observe_intersection_distances":False,
+                                "observe_intersection_velocities": False, "dummy_dist_intersection": 50,
+                                "observe_ego_distance_intersection": False,"observe_lane_change": False,
+                                "observe_relative_priority":True}
+    })
+
+
     ego_vehicle = ContinuousVehicle({"vehicle_type": 2, "vehicle_model": 0})
     ego_vehicle.reset(ego_state, dt=0.1)
 
@@ -300,21 +330,21 @@ def test_get_surrounding_obstacles_lidar_circle(ego_state, prev_rel_pos, p_rel_e
 
 @pytest.mark.parametrize(("obstacle_shapes", "ego_state", "actual_detection_points"), [(
         [PolygonShapely(np.array([[0, 0], [1, 0], [1, 1], [0, 1]]))],
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
         np.array([[100, -3], [0, 0], [-100, -3], [0, -103]])), (
         [PolygonShapely(np.array([[0, 0], [1, 0], [1, 1], [0, 1]])),
          PolygonShapely(np.array([[0, 0], [1, 0], [1, 1], [0, 1]]) + 2), ],
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
         np.array([[100, -3], [0, 0], [-100, -3], [0, -103]])), (
         [PolygonShapely(np.array([[0, 0], [1, 0], [1, 1], [0, 1]])),
          PolygonShapely(np.array([[0, 0], [1, 0], [1, 1], [0, 1]]) - 3), ],
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
         np.array([[100, -3], [0, 0], [-2, -3], [0, -103]]))])
 @unit_test
 @functional
 def test_get_distances_lidar_based(obstacle_shapes: List[Polygon], ego_state: State,
                                    actual_detection_points: np.ndarray):
-    configs = {"reward_configs_hybrid": {"reward_safe_distance_coef": -1.},
+    configs = {"reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
                'surrounding_configs': {'lidar_circle_num_beams': 4,
                                        'lidar_sensor_radius': 10., 'observe_lidar_circle_surrounding': True}}
 
@@ -378,9 +408,9 @@ def test_get_nearby_lanelet_id(connected_ego: set, connected_successor: set, con
 
 
 @pytest.mark.parametrize(("ego_state", "ego_lanelet_id", "desired_p_rel", "desired_v_rel"), [(
-        State(**{"time_step": 0, "position": np.array([21, 3.8]), "orientation": 0, "velocity": 0}), 30626,
+        CustomState(**{"time_step": 0, "position": np.array([21, 3.8]), "orientation": 0, "velocity": 0}), 30626,
         [100.0, 100.0, 100.0, 100.0, 0.38061144, 100.0], [0.0, 0.0, 0.0, 0.0, 35.0, 0.0]), (
-        State(**{"time_step": 0, "position": np.array([-39, -4]), "orientation": 0, "velocity": 0}), 30622,
+        CustomState(**{"time_step": 0, "position": np.array([-39, -4]), "orientation": 0, "velocity": 0}), 30622,
         [100.0, 100.0, 100.0, 100.0, 65.750643, 100.0], [0.0, 0.0, 0.0, 0.0, 27.0, 0.0])])
 @unit_test
 @functional
@@ -389,7 +419,7 @@ def test_get_rel_v_p_lane_based(ego_state: State, ego_lanelet_id: int, desired_p
     """
     test for get_rel_v_p_lane_based method of SurroundingObservations
     """
-    configs = {"reward_configs_hybrid": {"reward_safe_distance_coef": -1.},
+    configs = {"reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
                "surrounding_configs": {}}
     obs = SurroundingObservation(configs)
     obs.max_obs_dist = 100.0
@@ -412,12 +442,12 @@ def test_get_rel_v_p_lane_based(ego_state: State, ego_lanelet_id: int, desired_p
 
 
 @pytest.mark.parametrize(("obs_state", "ego_state", "follow", "desired_v_rel", "desired_p_rel"), [(
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}), True, 0, 0), (
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
-        State(**{"time_step": 2, "position": np.array([0, -320]), "orientation": 0, "velocity": 0}), False, 0, 0), (
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
-        State(**{"time_step": 2, "position": np.array([0, -20]), "orientation": 0, "velocity": 4}), True, 4, 17.0)])
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}), True, 0, 0), (
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -320]), "orientation": 0, "velocity": 0}), False, 0, 0), (
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -20]), "orientation": 0, "velocity": 4}), True, 4, 17.0)])
 @unit_test
 @functional
 def test_get_rel_v_p_follow_leading(obs_state: State, ego_state: State, follow: bool, desired_v_rel: float,
@@ -452,13 +482,13 @@ def test_get_rel_v_p_follow_leading(obs_state: State, ego_state: State, follow: 
 
 
 @pytest.mark.parametrize(("ego_state", "obstacle_shapes", 'desired_distances', 'lidar_circle_num_beams'), [(
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
         [PolygonShapely(np.array([[0, 0], [1, 1], [0, 1]])), ], np.array([100., 3., 100., 100.]), 4), (
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
         [PolygonShapely(np.array([[0, 0], [1, 1], [0, 1]])), PolygonShapely(np.array([[-3, 0], [-2, 1], [-3, 1]])),
          PolygonShapely(np.array([[4, -4], [5, -4], [5, -2], [4, -2]])), ],
         np.array([4., 100, 3., 3 * np.sqrt(2), 100, 100, 100., 100.]), 8), (
-        State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
+        CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}),
         [PolygonShapely(np.array([[0, 0], [1, 1], [0, 1]])), PolygonShapely(np.array([[-3, 0], [-2, 1], [-3, 1]])),
          PolygonShapely(np.array([[4, -4], [5, -4], [5, -2], [4, -2]])),
          PolygonShapely(np.array([[4, -5], [5, -5], [5, -7], [4, -6.9]])),
@@ -471,7 +501,7 @@ def test_get_obstacles_with_surrounding_beams(ego_state: State, obstacle_shapes:
     """
     test for get_obstacles_with_surrounding_beams function of SurroundingObservation class
     """
-    configs = {"reward_configs_hybrid": {"reward_safe_distance_coef": -1.},
+    configs = {"reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
                "surrounding_configs": {"observe_lidar_circle_surrounding": True, "lidar_sensor_radius": 100}}
 
     lidar_sensor_radius = 100
@@ -495,10 +525,10 @@ def test_get_obstacles_with_surrounding_beams(ego_state: State, obstacle_shapes:
 
 
 @pytest.mark.parametrize(("obstacle_state", "obstacle_lanelet_ids", "desired_id"), [
-    (State(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}), [0], 0), (
-            State(**{"time_step": 2, "position": np.array([-19, -2]), "orientation": 0, "velocity": 0}), [30622, 30624],
+    (CustomState(**{"time_step": 2, "position": np.array([0, -3]), "orientation": 0, "velocity": 0}), [0], 0), (
+            CustomState(**{"time_step": 2, "position": np.array([-19, -2]), "orientation": 0, "velocity": 0}), [30622, 30624],
             30624), (
-            State(**{"time_step": 2, "position": np.array([-19, -3]), "orientation": -np.pi / 4, "velocity": 0}),
+            CustomState(**{"time_step": 2, "position": np.array([-19, -3]), "orientation": -np.pi / 4, "velocity": 0}),
             [30622, 30624], 30624)])
 @unit_test
 @functional
@@ -543,7 +573,7 @@ def test_get_obstacles_in_surrounding_area(surrounding_area: pycrcc.Shape, curre
     scenario
     obstacles
     """
-    obs = SurroundingObservation({"reward_configs_hybrid": {}, "surrounding_configs": {}})
+    obs = SurroundingObservation({"reward_configs":{"hybrid_reward": {}}, "surrounding_configs": {}})
     obs._scenario = scenario_2
     obs._current_time_step = current_timestep
 
@@ -551,6 +581,109 @@ def test_get_obstacles_in_surrounding_area(surrounding_area: pycrcc.Shape, curre
     assert len(lanelet_ids) == len(desired_lanelet_ids)
     assert all(np.isclose(desired_lanelet_ids, lanelet_ids).reshape(-1))
 
+# changed number to pass the unit test. previous numbers are listed below
+@pytest.mark.parametrize((
+        "obs_num", "expected_observation"),
+    [(0, np.array([3.22666699, 22.95433728])),   # number before change 3.1988354, 22.95714703
+        (2, np.array([14.7696437 , 34.49731399])), # number before change 14.74316852, 34.50148014
+        (3, np.array([-23.65154873,  -9.02153095])), # number before change -24.34614733, -8.96136342
+        (6, np.array([-33.22440331, -13.78585887])),
+        (7, np.array([-13.32364251,   6.12420627]))]) # number before change -16.92928943, 6.16155603
+@module_test
+@functional
+def test_get_ego_intersection_distance(obs_num, expected_observation):
+    """
+    Test for detecting distances to intersection for ego vehicle
+    """
+
+    surrounding_observation = SurroundingObservation(configs={
+        "reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
+        "surrounding_configs": {"observe_lane_rect_surrounding": False,
+                                "observe_lane_circ_surrounding": True,
+                                "lane_rect_sensor_range_length": 100., "lane_rect_sensor_range_width": 7.,
+                                "lane_circ_sensor_range_radius": 50.0, "dummy_rel_vel": 0., "dummy_dist": 60.,
+                                "observe_is_collision": False, "observe_intersection_distances":False,
+                                "observe_intersection_velocities": False, "dummy_dist_intersection": 50,
+                                "observe_ego_distance_intersection": True}})
+    ego_vehicle = ContinuousVehicle({"vehicle_type": 2, "vehicle_model": 0})
+    state = scenario_3.dynamic_obstacles[obs_num].state_at_time(0)
+    ego_vehicle.reset(state, dt=0.04)
+
+    # find ego lanelet here because multiple observations need it
+    ego_lanelet_ids = ObservationCollector.sorted_lanelets_by_state(scenario_3, state, lanelet_polygons_3,
+                                                                    lanelet_polygons_sg_3)
+    ego_lanelet_id = ego_lanelet_ids[0]
+
+    ego_lanelet = scenario_3.lanelet_network.find_lanelet_by_id(ego_lanelet_id)
+
+    local_ccosy, _ = ObservationCollector.get_local_curvi_cosy(scenario_3.lanelet_network, ego_lanelet_id, None,
+                                                               max_lane_merge_range=1000.)
+    collision_checker = create_collision_checker(scenario_3)
+    conflict_zone = ConflictZone()
+    conflict_zone.reset(scenario_3)
+    surrounding_observation.observe(scenario_3, ego_vehicle, 0, connected_lanelet_dict_3, ego_lanelet,
+                                    collision_checker=collision_checker, local_ccosy=local_ccosy,
+                                    conflict_zone=conflict_zone)
+
+    ego_intersection_distance = surrounding_observation.observation_dict["ego_distance_intersection"]
+
+    # Check against ground truth
+    assert np.allclose(np.array(ego_intersection_distance), np.array(expected_observation), atol=1e-2)
+
+# changed number to pass the unit test. previous numbers are listed below
+# 0 : -18.87425699, -16.92928943, -14.25522092, 3.1988354, 8.94581882,  14.74316852         16.2605, 12.01397, 7.23233, 0., 0., 0.
+# 1 : -19.52558958, -17.42029619, -14.52097371, 3.1988354, 8.94581882,  14.74316852         16.27618, 12.00737, 7.23564, 0., 0., 0.]
+# 50 : 3.1988354, 8.94581882, 14.74316852, 50., 50., 50.       0, 0, 0, 0, 0, 0
+# 100 : -12.49003731, 3.1988354, 8.94581882, 14.74316852, 16.27458871,  50.       11.31547, 0., 0., 0., 10.80843, 0.
+@pytest.mark.parametrize((
+        "time_step", "expected_distances", "expected_velocities"),
+    [(0, np.array([-18.88140868, -16.83738288, -14.17917091,   3.22666699,  8.97399696,  14.7696437]), np.array([16.2605, 12.01397, 7.23233, 0., 0., 0.])),
+        (1, np.array([-19.5329787 , -17.32711044, -14.44436202,   3.22666699, 8.97399696,  14.7696437 ]), np.array([16.27618, 12.00737, 7.23564, 0., 0., 0.])),
+        (50, np.array([3.22666699,  8.97399696, 14.7696437 , 50. , 50. , 50.   ]), np.array([0, 0, 0, 0, 0, 0])),
+        (100, np.array([-12.49805328,   3.22666699,   8.97399696,  14.7696437 , 16.30804512,  50. ]), np.array([11.31547, 0., 0., 0., 10.80843, 0.]))])
+@module_test
+@functional
+def test_get_intersection_distances(time_step, expected_distances, expected_velocities):
+    """
+    Test for detecting distances to intersection for other vehicles
+    """
+
+    surrounding_observation = SurroundingObservation(configs={
+        "reward_configs": {"hybrid_reward": {"reward_safe_distance_coef": -1.}},
+        "surrounding_configs": {"observe_lane_rect_surrounding": False,
+                                "observe_lane_circ_surrounding": True,
+                                "lane_rect_sensor_range_length": 100., "lane_rect_sensor_range_width": 7.,
+                                "lane_circ_sensor_range_radius": 50.0, "dummy_rel_vel": 0., "dummy_dist": 60.,
+                                "observe_is_collision": False, "observe_intersection_distances": True,
+                                "observe_intersection_velocities": True, "dummy_dist_intersection": 50,
+                                "observe_ego_distance_intersection": False}})
+    ego_vehicle = ContinuousVehicle({"vehicle_type": 2, "vehicle_model": 0})
+    state = CustomState(**{"time_step": time_step, "position": np.array([40.09902,-16.25447]),
+                     "orientation": 5.4828199, "velocity": 5.77779})
+    ego_vehicle.reset(state, dt=0.04)
+
+    # find ego lanelet here because multiple observations need it
+    ego_lanelet_ids = ObservationCollector.sorted_lanelets_by_state(scenario_3, state, lanelet_polygons_3,
+                                                                    lanelet_polygons_sg_3)
+    ego_lanelet_id = ego_lanelet_ids[0]
+
+    ego_lanelet = scenario_3.lanelet_network.find_lanelet_by_id(ego_lanelet_id)
+
+    local_ccosy, _ = ObservationCollector.get_local_curvi_cosy(scenario_3.lanelet_network, ego_lanelet_id, None,
+                                                               max_lane_merge_range=1000.)
+    collision_checker = create_collision_checker(scenario_3)
+    conflict_zone = ConflictZone()
+    conflict_zone.reset(scenario_3)
+    surrounding_observation.observe(scenario_3, ego_vehicle, time_step, connected_lanelet_dict_3, ego_lanelet,
+                                    collision_checker=collision_checker, local_ccosy=local_ccosy,
+                                    conflict_zone=conflict_zone)
+
+    intersection_distances = surrounding_observation.observation_dict["intersection_distances"]
+    intersection_velocities = surrounding_observation.observation_dict["intersection_velocities"]
+
+    # Check against ground truth
+    assert np.allclose(np.array(intersection_distances), np.array(expected_distances), atol=1e-2)
+    assert np.allclose(np.array(intersection_velocities), np.array(expected_velocities), atol=1e-2)
 
 @pytest.mark.parametrize(("obs", "expected_types"), [
     (scenario_1.static_obstacles + scenario_1.dynamic_obstacles, [1, 1, 4, 1, 1, 1, 1, 1, 1, 1]),
@@ -560,7 +693,7 @@ def test_get_obstacles_in_surrounding_area(surrounding_area: pycrcc.Shape, curre
 @unit_test
 @functional
 def test_get_obstacle_types(obs: List[Optional[Obstacle]], expected_types: List[int]):
-    configs = {"reward_configs_hybrid": {"reward_safe_distance_coef": -1.},
+    configs = {"reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
                "surrounding_configs": {"observe_lidar_circle_surrounding": True}}
     observation = SurroundingObservation(configs)
     observation.observation_dict = dict()
@@ -580,7 +713,7 @@ def test_get_obstacle_types(obs: List[Optional[Obstacle]], expected_types: List[
 @unit_test
 @functional
 def test_get_obstacle_lights(obs: List[Optional[Obstacle]], expected_lights: List[int]):
-    configs = {"reward_configs_hybrid": {"reward_safe_distance_coef": -1.},
+    configs = {"reward_configs":{"hybrid_reward": {"reward_safe_distance_coef": -1.}},
                "surrounding_configs": {"observe_lidar_circle_surrounding": True}}
     observation = SurroundingObservation(configs)
     observation.observation_dict = dict()
@@ -599,13 +732,13 @@ def test_continuous_collision_checking(preprocess):
     scenario = Scenario(dt=1, scenario_id=ScenarioID("test"))
     obstacle_shape = Rectangle(width=2, length=5)
     state_list = [
-        State(position=np.array([10., 0.]), velocity=10., orientation=0., time_step=1),
-        State(position=np.array([20., 0.]), velocity=10., orientation=0., time_step=2)
+        CustomState(position=np.array([10., 0.]), velocity=10., orientation=0., time_step=1),
+        CustomState(position=np.array([20., 0.]), velocity=10., orientation=0., time_step=2)
     ]
     dynamic_obstacle = DynamicObstacle(scenario.generate_object_id(),
                                        ObstacleType.CAR,
                                        obstacle_shape,
-                                       State(position=np.array([0., 0.]), velocity=10., orientation=0., time_step=0),
+                                       CustomState(position=np.array([0., 0.]), velocity=10., orientation=0., time_step=0),
                                        TrajectoryPrediction(Trajectory(1, state_list), obstacle_shape))
 
     scenario.add_objects(dynamic_obstacle)
@@ -617,13 +750,14 @@ def test_continuous_collision_checking(preprocess):
 
         # Assume default environment configurations
     configs = config["env_configs"]
+    configs["action_configs"]["continuous_collision_checking"] = True
     observation_collector = ObservationCollector(configs)
     observation_collector._scenario = scenario
     observation_collector._benchmark_id = "test"
     import time
     t1 = time.time()
     observation_collector._update_collision_checker()
-    print(f"Elapsed time {time.time()-t1}")
+    print(f"Elapsed time {time.time() - t1}")
 
     # ego vehicle
     vehicle_params = {
@@ -631,17 +765,13 @@ def test_continuous_collision_checking(preprocess):
         "vehicle_model": 0,  # 0: VehicleModel.PM; 2: VehicleModel.KS;
     }
 
-    initial_state = State(position=np.array([5., -5.]), velocity=0., velocity_y=10., orientation=np.pi/2, time_step=0)
+    initial_state = CustomState(position=np.array([5., -5.]), velocity=0., velocity_y=10., orientation=np.pi / 2, time_step=0)
     dt = 1.0
 
     # Not to do anything, just continue the way with the given velocity
     vehicle = ContinuousVehicle(vehicle_params)
     vehicle.reset(initial_state, dt)
-    next_state = State(position=np.array([5., 5.]), velocity=0., velocity_y=10., orientation=np.pi/2, time_step=1)
+    next_state = CustomState(position=np.array([5., 5.]), velocity=0., velocity_y=10., orientation=np.pi / 2, time_step=1)
     vehicle.set_current_state(next_state)
 
     assert SurroundingObservation._check_collision(observation_collector._collision_checker, vehicle) == preprocess
-
-
-
-

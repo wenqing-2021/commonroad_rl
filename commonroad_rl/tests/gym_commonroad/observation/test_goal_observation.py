@@ -5,7 +5,7 @@ from commonroad.planning.goal import GoalRegion
 from commonroad.planning.planning_problem import PlanningProblem
 from commonroad.scenario.lanelet import Lanelet
 from commonroad.scenario.scenario import Scenario, ScenarioID
-from commonroad.scenario.trajectory import State
+from commonroad.scenario.trajectory import State, CustomState
 from commonroad_route_planner.route_planner import RoutePlanner
 
 from commonroad_rl.gym_commonroad.observation import GoalObservation
@@ -40,8 +40,8 @@ def test_get_goal_orientation_distance(ego_orientation, expected_output):
         "time_step": 0.0,
         "position": np.array([0.0, 0.0])
     }
-    ego_state = State(**dummy_state, orientation=ego_orientation)
-    goal_state = State(time_step=dummy_time_step,
+    ego_state = CustomState(**dummy_state, orientation=ego_orientation)
+    goal_state = CustomState(time_step=dummy_time_step,
                        position=Rectangle(length=2.0, width=2.0, center=np.array([5.0, 0.0])),
                        orientation=AngleInterval(-np.pi / 4, np.pi / 4))
 
@@ -76,8 +76,8 @@ def test_get_goal_time_distance(ego_time_step, expected_output):
         "orientation": 0.0,
         "position": np.array([0.0, 0.0])
     }
-    ego_state = State(**dummy_state, time_step=ego_time_step)
-    goal_state = State(time_step=Interval(10, 20),
+    ego_state = CustomState(**dummy_state, time_step=ego_time_step)
+    goal_state = CustomState(time_step=Interval(10, 20),
                        position=Rectangle(length=2.0, width=2.0, center=np.array([5.0, 0.0])),
                        orientation=AngleInterval(-np.pi / 2, np.pi / 2))
 
@@ -108,8 +108,8 @@ def test_get_goal_velocity_distance(ego_velocity, expected_output):
         "orientation": 0.0,
         "position": np.array([0.0, 0.0])
     }
-    ego_state = State(**dummy_state, velocity=ego_velocity)
-    goal_state = State(time_step=Interval(10, 20),
+    ego_state = CustomState(**dummy_state, velocity=ego_velocity)
+    goal_state = CustomState(time_step=Interval(10, 20),
                        position=Rectangle(length=2.0, width=2.0, center=np.array([5.0, 0.0])),
                        orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                        velocity=Interval(10., 20.))
@@ -144,7 +144,7 @@ def test_get_long_lat_distance_advance_to_goal(prev_advances, lat_long_distance,
         "orientation": 0.0,
         "position": np.array([0.0, 0.0])
     }
-    ego_state = State(**dummy_state)
+    ego_state = CustomState(**dummy_state)
 
     goal_obs = GoalObservation(configs)
     goal_obs.observation_history_dict['distance_goal_long'] = prev_advances[0]
@@ -169,7 +169,7 @@ def test_get_long_lat_distance_advance_to_goal(prev_advances, lat_long_distance,
     [
         (
                 np.array([0, 0]),
-                GoalRegion([State(time_step=Interval(1, 1),
+                GoalRegion([CustomState(time_step=Interval(1, 1),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([0.0, 0.0])),
                                   orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   velocity=Interval(0., 0.))]),
@@ -177,7 +177,7 @@ def test_get_long_lat_distance_advance_to_goal(prev_advances, lat_long_distance,
         ),
         (
                 np.array([0, 0]),
-                GoalRegion([State(time_step=Interval(1, 1),
+                GoalRegion([CustomState(time_step=Interval(1, 1),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([1.0, 1.0])),
                                   orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   velocity=Interval(0., 0.))]),
@@ -185,7 +185,7 @@ def test_get_long_lat_distance_advance_to_goal(prev_advances, lat_long_distance,
         ),
         (
                 np.array([0, 0]),
-                GoalRegion([State(time_step=Interval(1, 1),
+                GoalRegion([CustomState(time_step=Interval(1, 1),
                                   position=Polygon(np.array([[0, 0], [0, 2], [2, 2], [2, 0]])),
                                   orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   velocity=Interval(0., 0.))]),
@@ -193,7 +193,7 @@ def test_get_long_lat_distance_advance_to_goal(prev_advances, lat_long_distance,
         ),
         (
                 np.array([0, 0]),
-                GoalRegion([State(time_step=Interval(1, 1),
+                GoalRegion([CustomState(time_step=Interval(1, 1),
                                   position=Circle(1, np.array([1, 1])),
                                   orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   velocity=Interval(0., 0.))]),
@@ -201,7 +201,7 @@ def test_get_long_lat_distance_advance_to_goal(prev_advances, lat_long_distance,
         ),
         (
                 np.array([0, 0]), GoalRegion([
-                    State(time_step=Interval(1, 1),
+                    CustomState(time_step=Interval(1, 1),
                           position=ShapeGroup([
                               Polygon(np.array([[-7.3275, 12.5257],
                                                 [-7.5254, 9.1777],
@@ -311,7 +311,7 @@ def test_convert_shape_group_to_center(shape_group: ShapeGroup, actual_center: n
     ('ego_state', 'goal_region', 'is_reached'),
     [
         (
-                State(**{
+                CustomState(**{
                     "time_step": 1,
                     "yaw_rate": 0.0,
                     "slip_angle": 0.0,
@@ -319,14 +319,14 @@ def test_convert_shape_group_to_center(shape_group: ShapeGroup, actual_center: n
                     "position": np.array([0.0, 0.0]),
                     "velocity": 0
                 }),
-                GoalRegion([State(time_step=Interval(1, 1),
+                GoalRegion([CustomState(time_step=Interval(1, 1),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([0.0, 0.0])),
                                   orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   velocity=Interval(0., 0.))]),
                 True
         ),
         (
-                State(**{
+                CustomState(**{
                     "time_step": 5,
                     "yaw_rate": 0.0,
                     "slip_angle": 0.0,
@@ -334,14 +334,14 @@ def test_convert_shape_group_to_center(shape_group: ShapeGroup, actual_center: n
                     "position": np.array([0.0, 0.0]),
                     "velocity": 0
                 }),
-                GoalRegion([State(time_step=Interval(1, 1),
+                GoalRegion([CustomState(time_step=Interval(1, 1),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([0.0, 0.0])),
                                   orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   velocity=Interval(0., 0.))]),
                 False
         ),
         (
-                State(**{
+                CustomState(**{
                     "time_step": 1,
                     "yaw_rate": 0.0,
                     "slip_angle": 0.0,
@@ -349,14 +349,14 @@ def test_convert_shape_group_to_center(shape_group: ShapeGroup, actual_center: n
                     "position": np.array([4.0, 0.0]),
                     "velocity": 0
                 }),
-                GoalRegion([State(time_step=Interval(1, 1),
+                GoalRegion([CustomState(time_step=Interval(1, 1),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([0.0, 0.0])),
                                   orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   velocity=Interval(0., 0.))]),
                 False
         ),
         (
-                State(**{
+                CustomState(**{
                     "time_step": 1,
                     "yaw_rate": 0.0,
                     "slip_angle": 0.0,
@@ -364,7 +364,7 @@ def test_convert_shape_group_to_center(shape_group: ShapeGroup, actual_center: n
                     "position": np.array([0.0, 0.0]),
                     "velocity": 0.
                 }),
-                GoalRegion([State(time_step=Interval(1, 1),
+                GoalRegion([CustomState(time_step=Interval(1, 1),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([0.0, 0.0])),
                                   orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   velocity=Interval(0., 0.))]),
@@ -383,24 +383,24 @@ def test_check_goal_reached(ego_state: State, goal_region: GoalRegion, is_reache
     ('ego_state', 'goal_region', 'time_out'),
     [
         (
-                State(**{
+                CustomState(**{
                     "time_step": 1
                 }),
-                GoalRegion([State(time_step=Interval(1, 1))]),
+                GoalRegion([CustomState(time_step=Interval(1, 1))]),
                 True
         ),
         (
-                State(**{
+                CustomState(**{
                     "time_step": 3
                 }),
-                GoalRegion([State(time_step=Interval(1, 1))]),
+                GoalRegion([CustomState(time_step=Interval(1, 1))]),
                 True
         ),
         (
-                State(**{
+                CustomState(**{
                     "time_step": 0
                 }),
-                GoalRegion([State(time_step=Interval(1, 1))]),
+                GoalRegion([CustomState(time_step=Interval(1, 1))]),
                 False
         )
     ]
@@ -456,8 +456,8 @@ def test_get_long_lat_distance_to_goal(ego_position, expected_output):
         "slip_angle": 0.0,
         "time_step": 0.0,
     }
-    ego_state = State(**dummy_state, position=ego_position)
-    goal_state = State(time_step=dummy_time_step,
+    ego_state = CustomState(**dummy_state, position=ego_position)
+    goal_state = CustomState(time_step=dummy_time_step,
                        position=Rectangle(length=2.0, width=2.0, center=np.array([5.0, 0.0])))
     planning_problem = PlanningProblem(planning_problem_id=0, initial_state=ego_state,
                                        goal_region=GoalRegion([goal_state]))

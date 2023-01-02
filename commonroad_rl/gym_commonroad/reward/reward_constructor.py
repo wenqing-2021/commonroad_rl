@@ -1,9 +1,13 @@
 """File containing a reward function generator (Can't be incorporated into other modules because of cyclic import
 problems """
-from commonroad_rl.gym_commonroad.reward.dense_reward import DenseReward
 from commonroad_rl.gym_commonroad.reward.hybrid_reward import HybridReward
 from commonroad_rl.gym_commonroad.reward.reward import Reward
 from commonroad_rl.gym_commonroad.reward.sparse_reward import SparseReward
+
+reward_type_to_class = {
+    "sparse_reward": SparseReward,
+    "hybrid_reward": HybridReward,
+}
 
 
 def make_reward(configs: dict) -> Reward:
@@ -16,11 +20,7 @@ def make_reward(configs: dict) -> Reward:
 
     reward_type = configs["reward_type"]
 
-    if reward_type == "sparse_reward":
-        return SparseReward(configs)
-    elif reward_type == "hybrid_reward":
-        return HybridReward(configs)
-    elif reward_type == "dense_reward":
-        return DenseReward(configs)
+    if reward_type in reward_type_to_class:
+        return reward_type_to_class[reward_type](configs)
     else:
         raise ValueError(f"Illegal reward type: {reward_type}!")

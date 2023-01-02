@@ -10,7 +10,7 @@ from commonroad.planning.planning_problem import PlanningProblem
 from commonroad.scenario.obstacle import State
 from commonroad.scenario.scenario import Scenario
 from commonroad.visualization.mp_renderer import MPRenderer
-from commonroad.visualization.param_server import ParamServer
+from commonroad.visualization.draw_params import LaneletParams
 from commonroad_rl.gym_commonroad.observation.observation import Observation
 from commonroad_rl.gym_commonroad.utils.navigator import Navigator
 from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
@@ -156,24 +156,16 @@ class GoalObservation(Observation):
         if render_configs["render_global_ccosy"]:
             # TODO: This functionality has been taken from commonroad-route-planner
             # As soon as the route-planner supports drawing only the ccosy, this part should be replaced
-            draw_params = ParamServer(
-                {"lanelet": {"center_bound_color": "#128c01",
-                             "unique_colors": False,
-                             "draw_stop_line": True,
-                             "stop_line_color": "#ffffff",
-                             "draw_line_markings": False,
-                             "draw_left_bound": False,
-                             "draw_right_bound": False,
-                             "draw_center_bound": True,
-                             "draw_border_vertices": False,
-                             "draw_start_and_direction": False,
-                             "show_label": False,
-                             "draw_linewidth": 1,
-                             "fill_lanelet": False,
-                             "facecolor": "#128c01",
-                             }
-                 }
-            )
+            draw_params = LaneletParams()
+            draw_params.center_bound_color = "#128c01"
+            draw_params.draw_line_markings = False
+            draw_params.draw_left_bound = False
+            draw_params.draw_right_bound = False
+            draw_params.draw_start_and_direction = False
+            draw_params.draw_linewidth = 1.
+            draw_params.fill_lanelet = False
+            draw_params.facecolor = "#128c01"
+
             # TODO: temporary fix for missing draw method in Lanelet, remove after fixed in cr-io
             from commonroad.scenario.lanelet import LaneletNetwork
             LaneletNetwork.create_from_lanelet_list(navigator.merged_route_lanelets).draw(render, draw_params=draw_params)

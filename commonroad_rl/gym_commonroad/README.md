@@ -94,6 +94,15 @@ Overview:
 | lidar_elli_dist       | list[float]   | euclidean distances of closest vehicles, with *`self.DEFAULT["num_beams"]`* number of elements. Maximum detection range if none.    |
 | lidar_elli_dist_rate  | list[float]   | change rate of euclidean distances of closest vehicles, with *`self.DEFAULT["num_beams"]`* number of elements. 0.0 if none. |
 
+##### Intersection related observations
+
+| variable name             | variable type | variable description                                         |
+| ------------------------- | ------------- | ------------------------------------------------------------ |
+| intersection_distances    | list[float]   | Relative distances between the six closest vehicles, which are not lane-based surrounding vehicles, and the intersection region   |
+| intersection_velocities   | list[float]   | Relative velocities between the six closest vehicles, which are not lane-based surrounding vehicles, and the intersection region   |
+| ego_intersection_distance | list[float]   | Distances to the near and far boundary of the intersection region. |
+
+
 #### Termination-related
 
 | variable name            | variable type | variable description                                         |
@@ -153,6 +162,10 @@ Note: Default configuration is given in [*`commonroad_rl/gym_commonroad/configs.
 | reward_lateral_velocity           | float         | penalty for a large lateral velocity                  |
 | reward_jerk_long                  | float         |                                                       |
 | reward_jerk_lat                   | float         |                                                       |
+| reward_lat_distance_reference_path   | float         | reward for being closer to the reference path in lateral direction       |
+| reward_long_distance_reference_path   | float         | reward for being closer to the reference path in longitudinal direction       |
+| reward_orientation_to_reference   | float         | reward for having similar orientation to the reference orientation        |
+
 
 #### Dense Reward
 | variable name             | variable type | variable description                                          |

@@ -27,7 +27,7 @@ def test_valid_vehicle_orientation(steering_angle, velocity, expected_orientatio
         "time_step": 0,
         "orientation": 0.0,
     }
-    initial_state = State(**dummy_state, steering_angle=steering_angle, velocity=velocity)
+    initial_state = CustomState(**dummy_state, steering_angle=steering_angle, velocity=velocity)
     dt = 1.0
 
     # Not to do anything, just continue the way with the given velocity
@@ -62,7 +62,7 @@ def test_valid_vehicle_orientation(steering_angle, velocity, expected_orientatio
         (
                 VehicleModel.KS,
                 np.array([0.04, 2.3]),
-                np.array([26.11458402, 30.52582269]),
+                np.array([23.57605449, 31.40848146]),
         ),
         (
                 VehicleModel.YawRate,
@@ -73,6 +73,11 @@ def test_valid_vehicle_orientation(steering_angle, velocity, expected_orientatio
                 VehicleModel.YawRate,
                 np.array([0.2, 2.3]),
                 np.array([42.98873942, 28.80964147]),
+        ),
+        (
+                VehicleModel.QP,
+                np.array([0.2, 0.]),
+                np.array([30.20833333,  0.]),
         ),
     ],
 )
@@ -89,7 +94,7 @@ def test_continuous_vehicle(vehicle_model, action, expected_position):
     vehicle = ContinuousVehicle(vehicle_params)
 
     if vehicle_model == 0:
-        initial_state = State(
+        initial_state = CustomState(
             **{
                 "position": np.array([0., 0.]),
                 "velocity": 5,
@@ -97,7 +102,7 @@ def test_continuous_vehicle(vehicle_model, action, expected_position):
                 "time_step": 0,
             })
     else:
-        initial_state = State(
+        initial_state = CustomState(
             **{
                 "position": np.array([0., 0.]),
                 "steering_angle": 0.0,

@@ -5,6 +5,7 @@ import os
 
 os.environ["KMP_WARNINGS"] = "off"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["KMP_AFFINITY"] = "none"
 import sys
 import logging
 

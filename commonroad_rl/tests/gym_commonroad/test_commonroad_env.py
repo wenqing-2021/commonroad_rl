@@ -50,8 +50,7 @@ def test_check_env(num_of_checks, test_env, play):
 
 @pytest.mark.parametrize(("reward_type"),
                          [("hybrid_reward"),
-                          ("sparse_reward"),
-                          ("dense_reward")])
+                          ("sparse_reward")])
 @module_test
 @functional
 def test_step(reward_type):
@@ -64,13 +63,8 @@ def test_step(reward_type):
     env.reset()
     done = False
     while not done:
-        # for i in range(50):
         action = env.action_space.sample()
-        # action = np.array([0., 0.1])
         obs, reward, done, info = env.step(action)
-
-        # TODO: define reference format and assert
-        # print(f"step {i}, reward {reward:2f}")
 
 
 @module_test
@@ -213,8 +207,7 @@ def test_reset_env_with_scenario():
 
 
 @pytest.mark.parametrize(("reward_type"),
-                         [("dense_reward"),
-                          ("sparse_reward"),
+                         [("sparse_reward"),
                           ("hybrid_reward")])
 @module_test
 @functional
@@ -247,8 +240,7 @@ def test_observation_order(reward_type):
 
 
 @pytest.mark.parametrize(("reward_type"),
-                         [("dense_reward"),
-                          ("sparse_reward"),
+                         [("sparse_reward"),
                           ("hybrid_reward")])
 @module_test
 @nonfunctional

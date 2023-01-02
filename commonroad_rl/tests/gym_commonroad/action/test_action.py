@@ -57,7 +57,7 @@ def test_discrete_pm_planner(action, expected_position):
         "vehicle_model": 0,
     }
     vehicle_action = DiscretePMAction(vehicle_params, long_steps=5, lat_steps=5)
-    initial_state = State(
+    initial_state = CustomState(
         **{
             "position": np.array([0., 0.]),
             "velocity": 5,
@@ -122,7 +122,7 @@ def test_discrete_jerk_planner(action, expected_position):
         "vehicle_model": 0,
     }
     vehicle_action = DiscretePMJerkAction(vehicle_params, long_steps=5, lat_steps=5)
-    initial_state = State(
+    initial_state = CustomState(
         **{
             "position": np.array([0., 0.]),
             "velocity": 5,
@@ -177,7 +177,7 @@ def test_discrete_jerk_planner_clipping(action, expected_position):
         "vehicle_model": 0,
     }
     vehicle_action = DiscretePMJerkAction(vehicle_params, long_steps=5, lat_steps=5)
-    initial_state = State(
+    initial_state = CustomState(
         **{
             "position": np.array([0., 0.]),
             "velocity": 5,
@@ -235,7 +235,7 @@ def test_continuous_action_yaw_rate_rescale(vehicle_model, expected_value):
     }
 
     action = ContinuousAction(vehicle_params, action_configs)
-    initial_state = State(
+    initial_state = CustomState(
         **{
             "position": np.array([0., 0.]),
             "velocity": 23.,

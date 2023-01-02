@@ -31,6 +31,7 @@ from commonroad_rl.gym_commonroad.observation.lanelet_network_observation import
 from commonroad_rl.gym_commonroad.observation.surrounding_observation import SurroundingObservation
 from commonroad_rl.gym_commonroad.observation.traffic_sign_observation import TrafficSignObservation
 from commonroad_rl.gym_commonroad.utils.navigator import Navigator
+from commonroad_rl.gym_commonroad.utils.conflict_zone import ConflictZone
 
 LOGGER = logging.getLogger(__name__)
 
@@ -83,6 +84,13 @@ class ObservationCollector:
         self._continous_collision_check = configs["action_configs"].get("continuous_collision_checking", True)
         self._cache_navigator = dict()
         self.episode_length = None
+        self._enable_conflit_zone = self.surrounding_observation.observe_intersection_velocities \
+                                    or self.surrounding_observation.observe_intersection_distances \
+                                    or self.surrounding_observation.observe_ego_distance_intersection
+        if self._enable_conflit_zone:
+            self.conflict_zone = ConflictZone()
+        else:
+            self.conflict_zone = None
 
     def _build_observation_space(self) -> Union[gym.spaces.Box, gym.spaces.Dict]:
         """
@@ -132,6 +140,8 @@ class ObservationCollector:
 
         self.navigator = None
 
+        self.goal_observation.observation_history_dict = dict()
+
         # dictionary is not set anywhere
         if self._cache_scenario_ref_path_dict.get(str(self._scenario.scenario_id), None) is None:
             self._cache_scenario_ref_path_dict[str(self._scenario.scenario_id)] = dict()
@@ -143,8 +153,14 @@ class ObservationCollector:
             "right_road_edge_lanelet_id_dict": reset_config["right_road_edge_lanelet_id_dict"],
             "left_road_edge_dict": reset_config["left_road_edge_dict"],
             "right_road_edge_dict": reset_config["right_road_edge_dict"],
-            "boundary_collision_object": reset_config["boundary_collision_object"],
-        }
+            "boundary_collision_object": reset_config["boundary_collision_object"], }
+        #TODO: make this usable for more than the inD data set
+        if self._enable_conflit_zone and scenario.scenario_id.__str__().startswith('DEU_AAH'):
+            self.conflict_zone.reset(scenario)
+
+    @property
+    def road_edge(self):
+        return self._road_edge
 
     @staticmethod
     def compute_convex_hull_circle(radius, previous_position, current_position) -> pycrcc.RectOBB:
@@ -250,17 +266,18 @@ class ObservationCollector:
                                                               episode_length=self.episode_length,
                                                               local_ccosy=self.local_ccosy)
 
-        observation_dict_surrounding, ego_vehicle_lat_position = self.surrounding_observation.observe(
-            self._scenario,
-            ego_vehicle,
-            self.time_step,
-            self._connected_lanelet_dict,
-            self.ego_lanelet,
-            self._collision_checker,
-            self.local_ccosy,
-            self._ego_lanelet_ids)
+        observation_dict_surrounding, ego_vehicle_lat_position = self.surrounding_observation.observe(self._scenario,
+                                                                                                      ego_vehicle,
+                                                                                                      self.time_step,
+                                                                                                      self._connected_lanelet_dict,
+                                                                                                      self.ego_lanelet,
+                                                                                                      self._collision_checker,
+                                                                                                      self.local_ccosy,
+                                                                                                      self.conflict_zone,
+                                                                                                      self._ego_lanelet_ids)
+
         observation_dict_lanelet = self.lanelet_network_observation.observe(self._scenario, ego_vehicle,
-                                                                            self.ego_lanelet, self._road_edge,
+                                                                            self.ego_lanelet, self.road_edge,
                                                                             self.local_ccosy, self.navigator)
         observation_dict_traffic_sign = self.traffic_sign_observation.observe(self._scenario, ego_vehicle,
                                                                               self.ego_lanelet, self.local_ccosy)
@@ -306,7 +323,7 @@ class ObservationCollector:
 
     def render(self, render_configs: Dict, render: MPRenderer):
         self.lanelet_network_observation.draw(render_configs, render,
-                                              ego_vehicle=self._ego_vehicle, road_edge=self._road_edge,
+                                              ego_vehicle=self._ego_vehicle, road_edge=self.road_edge,
                                               ego_lanelet=self.ego_lanelet, navigator=self.navigator)
         self.goal_observation.draw(render_configs, render, self.navigator)
         self.surrounding_observation.draw(render_configs, render)

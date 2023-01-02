@@ -20,17 +20,20 @@ from commonroad_rl.tools.pickle_scenario.xml_to_pickle import pickle_xml_scenari
 
 configs = {
     "reward_type": "hybrid_reward",
-    "reward_configs_hybrid": {
-        "reward_goal_reached": 50.,
-        "reward_collision": -50.,
-        "reward_off_road": -20.,
-        "reward_friction_violation": -30.,
-        "reward_time_out": -10.,
-        "reward_closer_to_goal_long": 0.5,
-        "reward_closer_to_goal_lat": 2.5,
-        "reward_get_close_goal_time": 0.5,
-        "reward_close_goal_orientation": 0.5,
-        "reward_close_goal_velocity": 0.5
+    "reward_configs": {"hybrid_reward":
+        {
+            "reward_goal_reached": 50.,
+            "reward_collision": -50.,
+            "reward_off_road": -20.,
+            "reward_friction_violation": -30.,
+            "reward_time_out": -10.,
+            "reward_closer_to_goal_long": 0.5,
+            "reward_closer_to_goal_lat": 2.5,
+            "reward_get_close_goal_time": 0.5,
+            "reward_close_goal_orientation": 0.5,
+            "reward_close_goal_velocity": 0.5,
+            "reward_orientation_to_ref": 1.
+        }
     },
     "goal_configs": {
         "observe_euclidean_distance": False,
@@ -40,6 +43,10 @@ configs = {
         "observe_lane_change": False,
         "observe_lidar_circle_surrounding": True,
         "lidar_sensor_radius": 50.
+    },
+    "lanelet_configs": {
+        "observe_route_reference_path": True,
+        "distances_route_reference_path": [-1000, 0, 5, 15, 100]
     }
 }
 
@@ -163,52 +170,61 @@ def test_goal_orientation_reward():
             -0.05510302167
     ),
         (
-        {
-            "v_ego": np.array([23.]),
-            "lane_based_v_rel": np.array([0., 0., 0., 0., -11.5, 0.]),
-            "lane_based_p_rel": np.array([0., 0., 0., 0., 10., 0.]),
-            "lane_change": np.array([0.])
-        },
-        -0.05510302167
-    ),
-     (
-         {
-             "v_ego": np.array([23.]),
-             "lane_based_v_rel": np.array([0., 0., 0., 0., 1., 0.]),
-             "lane_based_p_rel": np.array([0., 0., 0., 0., 10., 0.]),
-             "lane_change": np.array([0.])
-         },
-         0.
-     ),
-     (
-         {
-             "v_ego": np.array([11.5]),
-             "lane_based_v_rel": np.array([0., -11.5, 0., 0., 0., 0.]),
-             "lane_based_p_rel": np.array([0., 10., 0., 0., 10., 0.]),
-             "lane_change": np.array([1.])
-         },
-         -0.05510302167
-     )],
+                {
+                    "v_ego": np.array([23.]),
+                    "lane_based_v_rel": np.array([0., 0., 0., 0., -11.5, 0.]),
+                    "lane_based_p_rel": np.array([0., 0., 0., 0., 10., 0.]),
+                    "lane_change": np.array([0.])
+                },
+                -0.05510302167
+        ),
+        (
+                {
+                    "v_ego": np.array([23.]),
+                    "lane_based_v_rel": np.array([0., 0., 0., 0., 1., 0.]),
+                    "lane_based_p_rel": np.array([0., 0., 0., 0., 10., 0.]),
+                    "lane_change": np.array([0.])
+                },
+                0.
+        ),
+        (
+                {
+                    "v_ego": np.array([11.5]),
+                    "lane_based_v_rel": np.array([0., -11.5, 0., 0., 0., 0.]),
+                    "lane_based_p_rel": np.array([0., 10., 0., 0., 10., 0.]),
+                    "lane_change": np.array([1.])
+                },
+                -0.05510302167
+        )],
 )
 @unit_test
 @functional
 def test_safe_distance_reward(observations, expected_reward):
-
     configs["surrounding_configs"]["observe_lane_change"] = True
     configs["surrounding_configs"]["observe_lane_rect_surrounding"] = True
     configs["surrounding_configs"]["lane_rect_sensor_range_length"] = 100.
     configs["surrounding_configs"]["lane_rect_sensor_range_width"] = 8.
-    configs["reward_configs_hybrid"]["reward_safe_distance_coef"] = -1.
+    configs["reward_configs"]["hybrid_reward"]["reward_safe_distance_coef"] = -1.
 
     reward = HybridReward(configs)
 
     assert math.isclose(reward.safe_distance_reward(observations), expected_reward)
 
 
+@unit_test
+@functional
+def test_orientation_to_reference_reward():
+    reward = HybridReward(configs)
+    observations = {
+        "route_reference_path_orientations": [0., 1., 0., 0., 0.]
+    }
+    assert math.isclose(reward.orientation_to_reference_reward(observations), (math.exp(-1.0 / np.pi) * 1))
+
+
 @pytest.mark.parametrize(
     "benchmark_id",
-    ["FRA_Miramas-5_1_T-1",
-     "USA_US101-14_1_T-1"],
+    [  # "FRA_Miramas-5_1_T-1",
+        "USA_US101-14_1_T-1"],
 )
 @module_test
 @nonfunctional

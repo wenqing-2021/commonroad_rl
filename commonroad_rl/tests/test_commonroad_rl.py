@@ -44,12 +44,11 @@ def run_overfit(test_batch, goal_relaxation, num_of_steps, env_id):
     test_reset_config_path = os.path.join(pickle_path, "problem")
     shutil.copytree(test_reset_config_path, os.path.join(pickle_path, "problem_test"))
     visualization_path = os.path.join(output_path, "images")
-    print(meta_scenario_path)
     algo = "ppo2"
 
     args_str = (
         f"--algo {algo} --env {env_id} --seed 1 --eval-freq 1000 --log-folder {log_path} --n-timesteps {num_of_steps}"
-        f" --info_keywords is_collision is_time_out is_off_road --env-kwargs"
+        f" --info_keywords is_collision is_time_out is_off_road is_goal_reached --env-kwargs"
         f' reward_type:"hybrid_reward"'
         f' meta_scenario_path:"{meta_scenario_path}"'
         f' train_reset_config_path:"{train_reset_config_path}"'
@@ -80,6 +79,7 @@ def run_overfit(test_batch, goal_relaxation, num_of_steps, env_id):
         solution_path=solution_path,
         cost_function=cost_function,
         env_id=env_id,
+        render=False, model_name="commonroad-v1"
     )
 
     assert all(results), f"not all overfit scenarios solved: {results}"
@@ -95,7 +95,6 @@ def test_overfit_model(env_id, test_batch, goal_relaxation, num_of_steps):
     run_overfit(test_batch, goal_relaxation, num_of_steps, env_id)
 
 
-# TODO: add more difficult batch
 @pytest.mark.parametrize(
     ("env_id", "test_batch", "goal_relaxation", "num_of_steps"),
     [("commonroad-v1", "DEU_A99-1_1_T-1", False, 30000)],

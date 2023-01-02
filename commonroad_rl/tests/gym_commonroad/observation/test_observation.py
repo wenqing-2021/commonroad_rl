@@ -4,11 +4,10 @@ Unit tests of the module gym_commonroad.observation
 
 import numpy as np
 from commonroad.scenario.scenario import Scenario, ScenarioID
-from commonroad.scenario.trajectory import State
+from commonroad.scenario.trajectory import CustomState
 from commonroad_dc import pycrcc
 from commonroad_dc.collision.collision_detection.pycrcc_collision_dispatch import create_collision_object
 
-from commonroad_rl.gym_commonroad.observation import Observation
 from commonroad_rl.tests.common.marker import *
 
 # ====================================================================================================================
@@ -58,7 +57,7 @@ def test_get_lanelet_id_by_state_orientation(orientation: float, lanelet_vertice
     """
     Test that get lanelet id by state makes correct use of orientations
     """
-    s = State(position=np.array([0, 0]), orientation=orientation)
+    s = CustomState(position=np.array([0, 0]), orientation=orientation, time_step=0)
     scenario = Scenario(0.1, ScenarioID("test_id"))
     for i, lv in enumerate(lanelet_vertices, start=1):
         l = Lanelet(np.array(lv[0]), np.array(lv[1]), np.array(lv[2]), i)
@@ -92,7 +91,7 @@ def test_related_lanelets_by_state(lanelet_vertices: List[Tuple[List[List[float]
     """
     Test that related lanelet id by state
     """
-    s = State(position=np.array([0, 0]), orientation=0)
+    s = CustomState(position=np.array([0, 0]), orientation=0, time_step=0)
     scenario = Scenario(dt=0.1, scenario_id=ScenarioID("test_id"))
     for i, lv in enumerate(lanelet_vertices, start=1):
         l = Lanelet(np.array(lv[0]), np.array(lv[1]), np.array(lv[2]), i)

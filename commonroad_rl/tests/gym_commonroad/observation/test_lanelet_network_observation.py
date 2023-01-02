@@ -18,8 +18,8 @@ from commonroad_rl.tools.pickle_scenario.xml_to_pickle import pickle_xml_scenari
 from commonroad_rl.tests.common.marker import *
 from commonroad_rl.tests.common.path import *
 
-xml_path = os.path.join(resource_root("test_laneletnetwork"))
-pickle_path = os.path.join(output_root("test_laneletnetwork"), "pickles")
+xml_path = os.path.join(resource_root("test_commonroad_env"))
+pickle_path = os.path.join(resource_root("test_commonroad_env"), "pickles")
 
 
 def prepare_for_test():
@@ -91,9 +91,9 @@ lanelet_polygons_sg, dummy_time_step = prepare_for_test()
     ('goal_region', 'ego_state', 'sampling_points', 'static', 'expected_offset'),
     [
         (
-                GoalRegion([State(time_step=Interval(1, 1), orientation=AngleInterval(-np.pi / 2, np.pi / 2),
+                GoalRegion([CustomState(time_step=Interval(1, 1), orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([3.0, 3.0])))]),
-                State(**{
+                CustomState(**{
                     "time_step": 1,
                     "yaw_rate": 0.0,
                     "slip_angle": 0.0,
@@ -106,9 +106,9 @@ lanelet_polygons_sg, dummy_time_step = prepare_for_test()
                 np.array([-6.])
         ),
         (
-                GoalRegion([State(time_step=Interval(1, 1), orientation=AngleInterval(-np.pi / 2, np.pi / 2),
+                GoalRegion([CustomState(time_step=Interval(1, 1), orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([0.0, 0.0])))]),
-                State(**{
+                CustomState(**{
                     "time_step": 1,
                     "yaw_rate": 0.0,
                     "slip_angle": 0.0,
@@ -121,9 +121,9 @@ lanelet_polygons_sg, dummy_time_step = prepare_for_test()
                 np.array([0])
         ),
         (
-                GoalRegion([State(time_step=Interval(1, 1), orientation=AngleInterval(-np.pi / 2, np.pi / 2),
+                GoalRegion([CustomState(time_step=Interval(1, 1), orientation=AngleInterval(-np.pi / 2, np.pi / 2),
                                   position=Rectangle(length=2.0, width=2.0, center=np.array([3.0, 3.0])))]),
-                State(**{
+                CustomState(**{
                     "time_step": 1,
                     "yaw_rate": 0.0,
                     "slip_angle": 0.0,
@@ -179,15 +179,15 @@ def test_get_relative_future_goal_offsets(goal_region: GoalRegion, ego_state: St
         (True, 0, np.array([0.05, 0.0]), [0, 0, 0, 0, 0, 1, 1, 1, 1, 0]),
         (False, 0.1, np.array([0.05, 0.0]), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         (False, 0.5, np.array([0.05, 0.0]), [0, 0, 0, 0, 0, 0, 1, 0, 0, 0]),
-        (False, 1.0, np.array([0.05, 0.0]), [0, 0, 0, 0, 0, 0, 1, 1, 0, 0]),
-        (False, 1.5, np.array([0.05, 0.0]), [0, 0, 0, 0, 0, 1, 1, 1, 0, 0]),
+        (False, 1.0, np.array([0.05, 0.0]), [0, 0, 0, 0, 0, 1, 1, 0, 0, 0]),
+        (False, 1.5, np.array([0.05, 0.0]), [0, 0, 0, 0, 1, 1, 1, 1, 0, 0]),
     ],
 )
 @functional
 @unit_test
 def test_check_off_road(strict_off_road_check, check_circle_radius, action, expected_output):
     # manully reset the ego vehicle
-    vehicle_action.reset(State(**dummy_state), dt=0.1)
+    vehicle_action.reset(CustomState(**dummy_state), dt=0.1)
 
     # specify off-road check mode
     lanelet_observation.strict_off_road_check = strict_off_road_check
@@ -206,7 +206,7 @@ def test_check_off_road(strict_off_road_check, check_circle_radius, action, expe
 @functional
 @unit_test
 def test_is_off_road_end():
-    vehicle_action.reset(State(position=np.array([387.5, 5.]),
+    vehicle_action.reset(CustomState(position=np.array([387.5, 5.]),
                                orientation=0.,
                                velocity=0.,
                                time_step=0), dt=0.1)
@@ -231,7 +231,7 @@ def test_end_of_road_termination():
                    train_reset_config_path=os.path.join(pickle_path, "problem"))
     env.reset()
     # manually reset ego vehicle to the end of the road
-    env.ego_action.reset(State(position=np.array([387.5, 5.]),
+    env.ego_action.reset(CustomState(position=np.array([387.5, 5.]),
                                orientation=0.,
                                velocity=1.,
                                time_step=0), dt=0.1)
@@ -255,7 +255,7 @@ def test_end_of_road_termination():
 @unit_test
 def test_get_distance_to_marker_and_road_edge(action, steps, expected_output):
     # manully reset the ego vehicle
-    vehicle_action.reset(State(**dummy_state), dt=0.1)
+    vehicle_action.reset(CustomState(**dummy_state), dt=0.1)
 
     for i in range(steps):
         vehicle_action.step(action)
@@ -459,7 +459,7 @@ def test_get_distance_to_marker_and_road_edge(position: np.ndarray, left_marker:
                                               left_edge: LineString, right_edge: LineString,
                                               desired_left_marker_distance: float, desired_right_marker_distance: float,
                                               desired_left_edge_distance: float, desired_right_edge_distance: float):
-    ego_state = State(**{"time_step": 0, "position": position, "orientation": 0, "velocity": 0})
+    ego_state = CustomState(**{"time_step": 0, "position": position, "orientation": 0, "velocity": 0})
 
     distance_left_marker, distance_right_marker, distance_left_road_edge, distance_right_road_edge = \
         LaneletNetworkObservation.get_distance_to_marker_and_road_edge(ego_state, left_marker, right_marker,
@@ -506,7 +506,8 @@ def test_get_distance_to_marker_and_road_edge(position: np.ndarray, left_marker:
 @functional
 @unit_test
 def test_get_lane_curvature(position, curve, expected_output):
-    ccosy = Navigator.create_coordinate_system_from_polyline(curve)
+    from commonroad_dc.geometry.geometry import CurvilinearCoordinateSystem # import here cause otherwise it's overwritten by pycrccosy.CurvilinearCoordinateSystem
+    ccosy = CurvilinearCoordinateSystem(curve)
     curvature = LaneletNetworkObservation.get_lane_curvature(position, ccosy)
     # TODO: reduce tolerance after ccosy is fixed (extrapolation and resampling introduced curvature deviation)
     assert np.isclose(curvature, expected_output, atol=1e-2)

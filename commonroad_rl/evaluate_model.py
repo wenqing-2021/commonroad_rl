@@ -37,8 +37,9 @@ def get_parser():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--env_id", type=str, default="commonroad-v1", help="environment ID")
     parser.add_argument("--algo", type=str, default="ppo2")
-    parser.add_argument("--test_path", "-i", type=str, help="Path to pickled test scenarios",
+    parser.add_argument("--scenario_path", "-i", type=str, help="Path to pickled test scenarios",
                         default=PATH_PARAMS["test_reset_config"])
+    parser.add_argument("--test_folder", type=str, help="Folder for problem pickles", default="problem_test")
     parser.add_argument("--model_path", "-model", type=str, help="Path to trained model",
                         default=PATH_PARAMS["log"] + "/ppo2/commonroad-v0_3")
     parser.add_argument("--evaluation_path", "-eval_path", type=str, help="Folder to store evaluation data",
@@ -56,8 +57,6 @@ def get_parser():
     parser.add_argument("--config_filename", "-config_f", type=str, default="environment_configurations.yml")
     parser.add_argument("--log_action_curve", action="store_true", help="Store action curve plot for analysis")
     parser.add_argument("--log_step_info", action="store_true", help="Store all info dict in step function")
-    # parser.add_argument("--step_info_kwargs", type=str, nargs="+", default=(),
-    #                     help="(tuple) extra information to log, from the information return of environment.step")
     parser.add_argument("--logging_mode", default=LoggingMode.INFO, type=LoggingMode, choices=list(LoggingMode))
 
     return parser
@@ -82,17 +81,6 @@ def create_environments(env_id: str, model_path: str, viz_path: str,
     """
     # Get environment keyword arguments including observation and reward configurations
     config_fn = os.path.join(model_path, config_filename)
-    # TODO: config is loaded in CommonRoadEnv, duplicated here => remove
-    # with open(config_fn, "r") as f:
-    #     env_kwargs = yaml.load(f, Loader=yaml.Loader)
-
-    # env_kwargs.update({"logging_mode": logging_mode,
-    #                    "meta_scenario_path": meta_path,
-    #                    "test_reset_config_path": test_path,
-    #                    "visualization_path": viz_path,
-    #                    "play": play,
-    #                    "test_env": test_env})
-
     env_kwargs = {"logging_mode": logging_mode,
                   "visualization_path": viz_path,
                   "play": play,
@@ -140,7 +128,7 @@ def main():
     handler.setLevel(args.logging_mode.value)
     LOGGER.addHandler(handler)
 
-    meta_path = os.path.join(args.test_path, "meta_scenario")
+    meta_path = os.path.join(args.scenario_path, "meta_scenario")
 
     # mpi for parallel processing
     rank = 0
@@ -150,10 +138,10 @@ def main():
         comm = MPI.COMM_WORLD
         rank = comm.Get_rank()
         size = comm.Get_size()
-        test_path = os.path.join(args.test_path, "problem_test", str(rank))
+        test_path = os.path.join(args.scenario_path, args.test_folder, str(rank))
 
     else:
-        test_path = os.path.join(args.test_path, "problem_test")
+        test_path = os.path.join(args.scenario_path, args.test_folder)
 
     # create evaluation folder in model_path
     evaluation_path = os.path.join(args.model_path, args.evaluation_path)
@@ -183,14 +171,9 @@ def main():
     except IndexError:
         args.num_scenarios = 0
 
-    if not args.no_csv:
-        fd_result = open(os.path.join(evaluation_path, f"{rank}_results.csv"), "w")
-        csv_writer = csv.writer(fd_result)
-
     count = 0
     info_dict = {}
-    # for kwargs in args.step_info_kwargs:
-    #     info_dict[kwargs] = []
+
     while count != args.num_scenarios:
         done = False
         if not args.no_render:
@@ -211,9 +194,9 @@ def main():
                         info_dict[kwargs] = [info[0][kwargs]]
                     else:
                         info_dict[kwargs].append(info[0][kwargs])
-            # for kwargs in args.step_info_kwargs:
-            #     info_dict[kwargs].append(info[0][kwargs])
-            LOGGER.debug(f"Step: {env.venv.envs[0].current_step}, \tReward: {reward}, \tDone: {done}")
+
+            if done:
+               LOGGER.info(f'scenario={info[0]["scenario_name"]}, termination_reason={info[0]["termination_reason"]}')
 
             if args.log_action_curve:
                 dt = env.venv.envs[0].scenario.dt
@@ -223,6 +206,7 @@ def main():
                 accelerations[benchmark_id].append(
                     [ego_vehicle.state.acceleration, ego_vehicle.state.acceleration_y])
                 jerks[benchmark_id].append([jerk_x, jerk_y])
+
         # log collision rate, off-road rate, and goal-reaching rate
         info = info[0]
 
@@ -234,31 +218,15 @@ def main():
         num_off_road += info["is_off_road"]
         num_goal_reaching += info["is_goal_reached"]
 
-        termination_reason = "other"
-        if info.get("is_time_out", 0) == 1:
-            termination_reason = "time_out"
-        elif info.get("is_off_road", 0) == 1:
-            if "valid_off_road" in info and info["valid_off_road"] == 1:
-                termination_reason = "valid_off_road"
-            else:
-                termination_reason = "off_road"
-        elif info.get("is_collision", 0) == 1:
-            if "valid_collision" in info and info["valid_collision"] == 1:
-                termination_reason = "valid_collision"
-            else:
-                termination_reason = "collision"
-        elif info.get("is_goal_reached", 0) == 1:
-            termination_reason = "goal_reached"
-
         out_of_scenarios = info["out_of_scenarios"]
         if not args.no_csv:
-            csv_writer.writerow((info["scenario_name"], info["current_episode_time_step"], termination_reason))
+            with open(os.path.join(evaluation_path, f"{rank}_results.csv"), "a") as f:
+                csv_writer = csv.writer(f)
+                csv_writer.writerow((info["scenario_name"], info["current_episode_time_step"], info["termination_reason"]))
 
         if out_of_scenarios:
             break
         count += 1
-    if not args.no_csv:
-        fd_result.close()
 
     if args.log_action_curve:
         for key in accelerations.keys():
@@ -314,37 +282,48 @@ def main():
             }, f)
 
     if not args.no_csv:
+        # TODO: fix for no_render mode
         # Reorganize the rendered images according to result of the scenario
         # Flatten directory
-        img_path = args.viz_path
-        for d in os.listdir(img_path):
-            dir_path = os.path.join(img_path, d)
-            if not os.path.isdir(dir_path):
-                continue
+        if not args.no_render:
+            img_path = args.viz_path
+            for d in os.listdir(img_path):
+                dir_path = os.path.join(img_path, d)
+                if not os.path.isdir(dir_path):
+                    continue
 
-            for f in os.listdir(dir_path):
-                os.rename(os.path.join(dir_path, f), os.path.join(img_path, f))
+                for f in os.listdir(dir_path):
+                    os.rename(os.path.join(dir_path, f), os.path.join(img_path, f))
 
-            os.rmdir(dir_path)
+                os.rmdir(dir_path)
 
         # Split into different termination reasons
-        with open(os.path.join(evaluation_path, "results.csv"), "r") as f:
-            os.mkdir(os.path.join(img_path, "time_out"))
-            os.mkdir(os.path.join(img_path, "off_road"))
-            os.mkdir(os.path.join(img_path, "collision"))
-            os.mkdir(os.path.join(img_path, "goal_reached"))
-            os.mkdir(os.path.join(img_path, "other"))
+            with open(os.path.join(evaluation_path, "results.csv"), "r") as f:
+                os.mkdir(os.path.join(img_path, "time_out"))
+                os.mkdir(os.path.join(img_path, "off_road"))
+                os.mkdir(os.path.join(img_path, "collision"))
+                os.mkdir(os.path.join(img_path, "collision", "valid_collision"))
+                os.mkdir(os.path.join(img_path, "collision", "collision_caused_by_other_vehicle"))
+                os.mkdir(os.path.join(img_path, "goal_reached"))
+                os.mkdir(os.path.join(img_path, "other"))
 
-            reader = csv.reader(f)
-            reader.__next__()
-            for [scenario_id, _, t_reason] in reader:
-                if args.no_render:
-                    dest_path = os.path.join(img_path, t_reason)
-                else:
-                    os.mkdir(os.path.join(img_path, t_reason, scenario_id))
-                    dest_path = os.path.join(img_path, t_reason, scenario_id)
-                for file_path in glob.glob(os.path.join(img_path, scenario_id + '*')):
-                    os.rename(file_path, os.path.join(dest_path, os.path.basename(file_path)))
+                reader = csv.reader(f)
+                reader.__next__()
+                for [scenario_id, _, t_reason] in reader:
+                    if args.no_render:
+                        if t_reason == "valid_collision" or t_reason == "collision_caused_by_other_vehicle":
+                            dest_path = os.path.join(img_path,"collision",t_reason)
+                        else:
+                            dest_path = os.path.join(img_path, t_reason)
+                    else:
+                        if t_reason == "valid_collision" or t_reason == "collision_caused_by_other_vehicle":
+                            os.mkdir(os.path.join(img_path, "collision", t_reason, scenario_id))
+                            dest_path = os.path.join(img_path, "collision", t_reason, scenario_id)
+                        else:
+                            os.mkdir(os.path.join(img_path, t_reason, scenario_id))
+                            dest_path = os.path.join(img_path, t_reason, scenario_id)
+                    for file_path in glob.glob(os.path.join(img_path, scenario_id + '*')):
+                        os.rename(file_path, os.path.join(dest_path, os.path.basename(file_path)))
 
 
 if __name__ == "__main__":

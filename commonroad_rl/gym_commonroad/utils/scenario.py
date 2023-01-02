@@ -19,6 +19,7 @@ def parse_map_name(scenario_id: ScenarioID) -> str:
 
 
 def make_valid_orientation(angle: float) -> float:
+    # make orientation [-pi, pi]
     # TODO: update this function in commonroad.common.util
     TWO_PI = 2.0 * np.pi
     angle = angle % TWO_PI

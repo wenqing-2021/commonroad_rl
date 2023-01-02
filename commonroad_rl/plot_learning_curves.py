@@ -2,7 +2,6 @@
 Module for plotting learning curves
 """
 import os
-
 os.environ["KMP_WARNINGS"] = "off"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import logging
@@ -72,6 +71,13 @@ def argsparser():
     # TODO: integrate sliding window size
     parser.add_argument("--smooth", action="store_true",
                         help="Smooth learning curves (average around a sliding window)")
+    parser.add_argument("--format", "-file", help="Image format to save", type=str, default="png")
+    parser.add_argument("-ic", "--invalid_collision", action="store_true",
+                        help="Plot invalid collisions only graph " +
+                             "- requires logging of info-keyword valid_collision")
+    parser.add_argument("-tc", "--total_collisions", action="store_true",
+                        help="Plot total (valid + invalid) collisions graph " +
+                             "- requires logging of info-keyword valid_collision")
 
     return parser.parse_args()
 
@@ -86,7 +92,7 @@ def ts2reward(results):
     :return: (np.ndarray, np.ndarray) the x and y output
     """
 
-    x_var = np.cumsum(results.monitor.l) * 1e-6
+    x_var = np.cumsum(results.monitor.l)
     y_var = results.monitor.r.values
 
     return x_var, y_var
@@ -102,7 +108,7 @@ def ts2goal(results):
     :return: (np.ndarray, np.ndarray) the x and y output
     """
 
-    x_var = np.cumsum(results.monitor.l.values) * 1e-6
+    x_var = np.cumsum(results.monitor.l.values)
     y_var = results.monitor.is_goal_reached.values
 
     return x_var, y_var
@@ -118,11 +124,20 @@ def ts2collision(results):
     :return: (np.ndarray, np.ndarray) the x and y output
     """
 
-    x_var = np.cumsum(results.monitor.l) * 1e-6
+    x_var = np.cumsum(results.monitor.l)
     if hasattr(results.monitor, "valid_collision"):
         y_var = results.monitor.valid_collision
     else:
         y_var = results.monitor.is_collision
+    """
+    else:
+        tmp = results.monitor.termination_reason != "invalid_collision"
+        y_var = np.logical_and(np.logical_and(
+            results.monitor.is_collision.values,
+            np.logical_not(results.monitor.is_infeasible.values)),
+            tmp.values
+        )
+    """
 
     return x_var, y_var
 
@@ -137,11 +152,15 @@ def ts2off_road(results):
     :return: (np.ndarray, np.ndarray) the x and y output
     """
 
-    x_var = np.cumsum(results.monitor.l) * 1e-6
+    x_var = np.cumsum(results.monitor.l)
     if hasattr(results.monitor, "valid_off_road"):
         y_var = results.monitor.valid_off_road.values
     else:
         y_var = results.monitor.is_off_road.values
+    """
+    else:
+        y_var = np.logical_and(results.monitor.is_off_road.values, np.logical_not(results.monitor.is_infeasible.values))
+    """
 
     return x_var, y_var
 
@@ -155,8 +174,8 @@ def ts2max_time(results):
         (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
     :return: (np.ndarray, np.ndarray) the x and y output
     """
-    x_var = np.cumsum(results.monitor.l.values * 1e-6)
-    y_var = smooth(results.monitor.is_time_out.values, radius=1)
+    x_var = np.cumsum(results.monitor.l.values)
+    y_var = results.monitor.is_time_out.values
 
     return x_var, y_var
 
@@ -171,7 +190,7 @@ def ts2goal_time(results):
     :return: (np.ndarray, np.ndarray) the x and y output
     """
 
-    x_var = np.cumsum(results.monitor.l * 1e-6)
+    x_var = np.cumsum(results.monitor.l)
     y_var = [0]
     for i, is_goal_reached in enumerate(results.monitor.is_goal_reached.values):
         if is_goal_reached:
@@ -181,6 +200,57 @@ def ts2goal_time(results):
             y_var.append(y_var[-1])
 
     return x_var, np.array(y_var[1:])
+
+
+def ts2infeasible(results):
+    """
+    Decompose a timesteps variable to x ans ys
+
+    :param timesteps: (Pandas DataFrame) the input data
+    :param xaxis: (str) the axis for the x and y output
+        (can be X_TIMESTEPS='timesteps', X_EPISODES='episodes' or X_WALLTIME='walltime_hrs')
+    :return: (np.ndarray, np.ndarray) the x and y output
+    """
+
+    x_var = np.cumsum(results.monitor.l)
+    y_var = results.monitor.is_infeasible.values
+
+    return x_var, y_var
+
+
+# TODO: plot individual infeasible reasons
+def ts2LongitudinalInfeasible(results):
+    x_var = np.cumsum(results.monitor.l)
+    y_var = results.monitor.infeasible_reason.values == "LongitudinalInfeasible"
+
+    return x_var, y_var
+
+
+def ts2LateralInfeasible(results):
+    x_var = np.cumsum(results.monitor.l)
+    y_var = results.monitor.infeasible_reason.values == "LateralInfeasible"
+
+    return x_var, y_var
+
+
+def ts2NoLongDrivingCorridors(results):
+    x_var = np.cumsum(results.monitor.l)
+    y_var = results.monitor.infeasible_reason.values == "NoLongDrivingCorridors"
+
+    return x_var, y_var
+
+
+def ts2num_safe_actions(results):
+    x_var = np.cumsum(results.monitor.l)
+    y_var = results.monitor.num_safe_actions.values #/results.monitor.l
+
+    return x_var, y_var
+
+def ts2unknown_braking(results):
+    x_var = np.cumsum(results.monitor.l)
+    y_var = results.monitor.infeasible_reason.values == "unknown_braking"
+
+    return x_var, y_var
 
 
 def ts2friction_violation(results):
@@ -193,9 +263,8 @@ def ts2friction_violation(results):
     :return: (np.ndarray, np.ndarray) the x and y output
     """
 
-    # TODO: Implement xaxis
-    x_var = np.cumsum(results.monitor.l.values * 1e-3)
-    y_var = smooth(results.monitor.is_friction_violation.values, radius=50)
+    x_var = np.cumsum(results.monitor.l.values)
+    y_var = results.monitor.is_friction_violation.values
 
     return x_var, y_var
 
@@ -222,7 +291,7 @@ def ts2u1(results):
     :return: (np.ndarray, np.ndarray) the x and y output
     """
 
-    x_var = np.cumsum(results.monitor.l.values) * 1e-6
+    x_var = np.cumsum(results.monitor.l.values)
     y_var = np.abs(results.monitor.u_cbf_1_sum.values) / results.monitor.l.values
     return x_var, y_var
 
@@ -237,7 +306,7 @@ def ts2u2(results):
     :return: (np.ndarray, np.ndarray) the x and y output
     """
 
-    x_var = np.cumsum(results.monitor.l.values) * 1e-6
+    x_var = np.cumsum(results.monitor.l.values)
     y_var = np.abs(results.monitor.u_cbf_1_sum.values) / results.monitor.l.values
     return x_var, y_var
 
@@ -245,9 +314,14 @@ def ts2u2(results):
 PLOT_DICT = {
     "Total Reward": ts2reward,
     "Goal-Reaching Rate": ts2goal,
-    # "Collision Rate": ts2collision,
-    # "Off-Road Rate": ts2off_road,
-    # "Time-Out Rate": ts2max_time,
+    "Valid Collision Rate": ts2collision,
+    "Off-Road Rate": ts2off_road,
+    "Time-Out Rate": ts2max_time,
+    "Infeasible Rate": ts2infeasible,
+    "LongitudinalInfeasible Rate": ts2LongitudinalInfeasible,
+    "LateralInfeasible Rate": ts2LateralInfeasible,
+    "NoLongDrivingCorridors Rate": ts2NoLongDrivingCorridors,
+    "Total Num Safe Actions": ts2num_safe_actions,
     # "Goal Reaching Time": ts2goal_time,
     # "Mean ego velocity": ts2v_ego,
     # "Total Robustness reward": ts2monitor_reward,
@@ -261,8 +335,8 @@ PLOT_DICT = {
     # "Active step robustness reward": ts2active_step_robustness,
     # "Active total robustness reward": ts2active_total_robustness,
     # "Step robustness reward vs num violation": violation2step_robustness_tmp,
-    "$|u_1 - u_\mathrm{RL1}|$   [rad/$\mathrm{s}^2$]": ts2u1,
-    "$|u_2 - u_\mathrm{RL2}|$   [m/$\mathrm{s}^2$]": ts2u2
+    # "$|u_1 - u_\mathrm{RL1}|$   [rad/$\mathrm{s}^2$]": ts2u1,
+    # "$|u_2 - u_\mathrm{RL2}|$   [m/$\mathrm{s}^2$]": ts2u2
     # "Friction violation": ts2friction_violation,
 }
 
@@ -273,6 +347,11 @@ def group_fn(results):
 
 def main():
     args = argsparser()
+
+    if args.invalid_collision:
+        PLOT_DICT["Invalid Collision Rate"] = ts2invalidcollision
+    if args.total_collisions:
+        PLOT_DICT["Total Collision Rate"] = ts2totalcollision
 
     log_dir = args.log_folder
     model_paths = tuple(args.model_path)
@@ -303,11 +382,9 @@ def main():
                     legend=legend, plot_line=plot_line, set_y_lim=set_y_lim)
             except AttributeError:
                 continue
-        format = "pdf"
         plt.tight_layout()
-        # plt.show()
-        fig.savefig(os.path.join(log_dir, model, f"{model}.{format}"), format=format, bbox_inches='tight')
-        LOGGER.info(f"Saved {model}.{format} to {log_dir}/{model}")  # , figure, os.path.join(log_dir, model))
+        fig.savefig(os.path.join(log_dir, model, f"{model}.{args.format}"), format=args.format, bbox_inches='tight')
+        LOGGER.info(f"Saved {model}.{args.format} to {log_dir}/{model}")  # , figure, os.path.join(log_dir, model))
 
 
 if __name__ == "__main__":

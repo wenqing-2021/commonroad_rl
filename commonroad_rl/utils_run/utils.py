@@ -110,7 +110,7 @@ class CRVecNormalize(SBVecNormalize):
         return self.normalize_obs(obs)
 
 
-def load_model_and_vecnormalize(model_path: str, algo: str, normalize: bool, env: gym.Env) -> BaseRLModel:
+def load_model_and_vecnormalize(model_path: str, algo: str, normalize: bool, env: gym.Env, model_name="best_model") -> BaseRLModel:
     """
     Load trained model and corresponding vecnormalize.pkl
     :param model_path: Path to folder containing the trained model
@@ -121,10 +121,11 @@ def load_model_and_vecnormalize(model_path: str, algo: str, normalize: bool, env
     """
     # Load the trained agent
     files = os.listdir(model_path)
-    if "best_model.zip" in files:
-        model_path = os.path.join(model_path, "best_model.zip")
+    model_name = f"{model_name}.zip"
+    if model_name in files:
+        model_path = os.path.join(model_path, model_name)
         if normalize:
-            vec_normalize_path = model_path.replace("best_model.zip", "vecnormalize.pkl")
+            vec_normalize_path = model_path.replace(model_name, "vecnormalize.pkl")
     else:
         # No best_model.zip, find last model
         files = sorted(glob.glob(os.path.join(model_path, "rl_model*.zip")))
@@ -138,7 +139,9 @@ def load_model_and_vecnormalize(model_path: str, algo: str, normalize: bool, env
 
     if os.path.exists(vec_normalize_path):
         LOGGER.info(f"Loading saved running average from {vec_normalize_path}")
-        env = CRVecNormalize(SBVecNormalize.load(vec_normalize_path, env))
+        vec_normalize_env = SBVecNormalize.load(vec_normalize_path, env)
+        vec_normalize_env.training = False
+        env = CRVecNormalize(vec_normalize_env)
     else:
         raise FileNotFoundError(f"vecnormalize.pkl not found in {vec_normalize_path}")
         
@@ -388,10 +391,10 @@ def create_test_env(
         if hyperparams["normalize"]:
             print("Loading running average")
             print("with params: {}".format(hyperparams["normalize_kwargs"]))
-            env = VecNormalize(env, training=False, **hyperparams["normalize_kwargs"])
+            env = SBVecNormalize(env, training=False, **hyperparams["normalize_kwargs"])
 
             if os.path.exists(os.path.join(stats_path, "vecnormalize.pkl")):
-                env = VecNormalize.load(
+                env = SBVecNormalize.load(
                     os.path.join(stats_path, "vecnormalize.pkl"), env
                 )
                 # Deactivate training and reward normalization
@@ -555,4 +558,9 @@ class StoreDict(argparse.Action):
             # Evaluate the string as python code
             arg_dict[key] = eval(value)
             setattr(namespace, self.dest, arg_dict)
+
+if __name__ == "__main__":
+    with open("model_hyperparameters.yml", "r") as f:
+        hyperparams = yaml.load(f, Loader=yaml.Loader)
+    get_wrapper_class(hyperparams)
 

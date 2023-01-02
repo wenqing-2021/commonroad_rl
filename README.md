@@ -1,6 +1,6 @@
 # CommonRoad-RL
 
-This repository contains a software package to solve motion planning problems on [CommonRoad](https://commonroad.in.tum.de) using Reinforcement Learning algorithms. We currently use the implementation for the RL algorithms from [Stable Baselines](https://stable-baselines.readthedocs.io/en/master/), but the package can be run with any standard (OpenAI Gym compatible) RL implementations.
+This repository contains a software package to solve motion planning problems on [CommonRoad](https://commonroad.in.tum.de) using Reinforcement Learning algorithms. We currently use the implementation for the RL algorithms from [OpenAI Stable Baselines](https://stable-baselines.readthedocs.io/en/master/), but the package can be run with any standard (OpenAI Gym compatible) RL implementations.
 
 ## CommonRoad-RL in a nutshell
 ```python
@@ -44,14 +44,14 @@ commonroad-rl
 │  ├─ tools                             # Tools to validate, visualize and analyze CommonRoad .xml files, as well as preprocess and convert to .pickle files.                                         
 │  ├─ utils_run                         # Utility functions to run training, tuning and evaluating files                                      
 │  ├─ README.md                                                      
-│  ├─ evaluate_model.py                 # Script to evaluate a trained RL model on specific recorded scenarios and visualize the scenario   
-│  ├─ evaluate_model_sumo.py            # Script to evaluate a trained RL model on interactive scenarios and visualize the scenario              
+│  ├─ evaluate_model.py                 # Script to evaluate a trained RL model on specific scenarios and visualize the scenario                
 │  ├─ generate_solution.py              # Script to genearte CommonRoad solution files from trained RL models.
 │  ├─ train_model.py                    # Script to train RL model or optimize hyperparameters or environment configurations           
 │  ├─ sensitivity_analysis.py           # Script to run sensitivity analysis for a trained model
 │  └─ plot_learning_curves.py           # Plot learning curves with provided training log files.                
 ├─ scripts                              # Bash scripts to install all dependencies, train and evaluate RL models, as well as generate CommonRoad solution files from trained RL models.
-├─ README.md                                                        
+├─ README.md                                            
+├─ commonroad_style_guide.rst           # Coding style guide for this project                
 ├─ environment.yml                                      
 └─ setup.py                                      
 ```
@@ -81,9 +81,11 @@ sudo apt-get install build-essential make cmake
 4. setup a new conda env (or install packages to an existing conda env e.g. myenv `conda env update --name myenv --file environment.yml`)
 ```
 conda env create -n cr37 -f environment.yml
-git submodule init
-git submodule update --recursive || exit_with_error "Update submodules failed"
+git lfs pull
 ```
+(optional) Install [`commonroad-interactive-scenarios`](https://gitlab.lrz.de/tum-cps/commonroad-interactive-scenarios) 
+if you want to evaluate a trained model with SUMO interactive scenarios.
+
 5. (optional) install pip packages for the docs. If you want to use the jupyter notebook, also install jupyter.
 ```
 source activate cr37
@@ -91,27 +93,10 @@ pip install -r commonroad_rl/doc/requirements_doc.txt
 conda install jupyter
 ```
 
-### Install with sudo rights
-Simply run
+### Install mpi4py and commonroad-rl manually
 ```
-bash scripts/install.sh -e cr37
-```
-`cr37` to be replaced by the name of your conda environment if needed.
-
-
-### Install without sudo rights
-
-If you have the necessary libraries installed already, you can also install without sudo rights. Simply run
-```
-bash scripts/install.sh -e cr37 --no-root
-```
-`cr37` to be replaced by the name of your conda environment if needed. Press `ctrl+c` to skip when asked for sudo password.
-
-This script will build all software in your home folder. 
-
-Please ask your admin to install necessary libraries for you if they are missing. The command to install all necessary libraries for mpi, building packages, and the drivability checker is:
-```
-sudo apt-get install -y libopenmpi-dev build-essential unzip cmake libboost-dev libboost-thread-dev libboost-test-dev libboost-filesystem-dev libeigen3-dev libcgal-dev xutils-dev libfcl-dev libomp-dev libgmp-dev libglu1-mesa-dev
+conda install --quiet -y  -c conda-forge mpi4py==3.1.3
+pip install -e .
 ```
 
 
@@ -121,7 +106,7 @@ Further details of our test system refer to `./commonroad_rl/tests`.
 
 ```
 source activate cr37
-pytest commonroad_rl/tests --scope unit module -m "not slow"
+bash scripts/run_test.sh
 ```
 
 ## Usage
@@ -134,10 +119,6 @@ The commonroad_rl folder contains the source files. There are Python scripts for
 
 ### Bash scripts
 If you tested your codes already and everything runs smoothly on your computer and you now want to run the real experiments on larger dataset, the bash scripts help you with that. The are located in `./scripts`. They can be used for training with PPO and TD3 and testing an agent. Always adapt the specific paths in the scripts to the corresponding paths on your machine and check the comments in the file to determine which arguments have to be provided.  
-
-## Development
-
-Please use `development` branch or open a new `feature_xxx` branch to make contribution.
 
 ## References and Suggested Guides
  
@@ -155,6 +136,7 @@ If you use CommonRoad-RL in your paper, please cite:
 	title = {{CommonRoad-RL}: A Configurable Reinforcement Learning Environment for Motion Planning of Autonomous Vehicles},
 	booktitle = {Proc. of the IEEE International Conference on Intelligent Transportation Systems (ITSC)},
 	year = {2021},
+	pages={466--472},
 }
 ```
 

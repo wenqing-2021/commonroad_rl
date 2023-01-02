@@ -129,7 +129,7 @@ def create_solution(commonroad_env: CommonroadEnv, output_directory: str, cost_f
 def solve_scenarios(test_path: str, model_path: str, algo: str, solution_path: str, cost_function: str,
                     multiprocessing: bool = False, hyperparam_filename: str = "model_hyperparameters.yml",
                     config_filename: str = "environment_configurations.yml", env_id: str = "commonroad-v1",
-                    render: bool = False
+                    render: bool = False, model_name="best_model"
                     ) -> List[bool]:
     """
     Solve a batch of scenarios using a trained model
@@ -197,7 +197,7 @@ def solve_scenarios(test_path: str, model_path: str, algo: str, solution_path: s
 
     normalize = hyperparams["normalize"]
 
-    model, env = load_model_and_vecnormalize(model_path, algo, normalize, env)
+    model, env = load_model_and_vecnormalize(model_path, algo, normalize, env, model_name=model_name)
 
     obs = env.reset()
     if render:

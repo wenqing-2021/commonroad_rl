@@ -14,7 +14,7 @@ from numpy import ndarray
 from scipy import spatial
 
 from commonroad_rl.gym_commonroad.constants import PATH_PARAMS
-from commonroad_rl.gym_commonroad.action.vehicle import Vehicle
+from commonroad_rl.gym_commonroad.action.vehicle import Vehicle, VehicleModel
 from commonroad_rl.gym_commonroad.observation.observation import Observation
 from commonroad_rl.gym_commonroad.utils.scenario import approx_orientation_vector, angle_difference
 
@@ -30,22 +30,26 @@ class EgoObservation(Observation):
         :param configs: dictionary to store all observation configurations
         :param configs_name: key of configs dictionary corresponding to this observation
         """
+        vehicle_model = configs["vehicle_params"]["vehicle_model"]
+        self._is_PM_model = vehicle_model == VehicleModel.PM.value
+
         # Read config
         ego_configs = configs[configs_name]
         self.observe_v_ego: bool = ego_configs.get("observe_v_ego")
         self.observe_a_ego: bool = ego_configs.get("observe_a_ego")
-        self.observe_relative_heading: bool = ego_configs.get("observe_relative_heading")
-        self.observe_steering_angle: bool = ego_configs.get("observe_steering_angle")
-        self.observe_global_turn_rate: bool = ego_configs.get("observe_global_turn_rate")
+        self.observe_jerk_ego: bool = ego_configs.get("observe_jerk_ego") and vehicle_model == VehicleModel.QP.value
+        self.observe_relative_heading: bool = ego_configs.get("observe_relative_heading") and not self._is_PM_model
+        self.observe_steering_angle: bool = ego_configs.get("observe_steering_angle") and not self._is_PM_model
+        # yaw_rate
+        self.observe_global_turn_rate: bool = ego_configs.get("observe_global_turn_rate") and not self._is_PM_model
+        # TODO: add observation for jerk and slip_angle for linearized vehicle model (QP)
+        # stores kappa for QP vehicle model
+        self.observe_slip_angle: bool = ego_configs.get("observe_slip_angle") and vehicle_model == VehicleModel.QP.value
         self.observe_remaining_steps: bool = ego_configs.get("observe_remaining_steps")
         self.observe_is_friction_violation: bool = ego_configs.get("observe_is_friction_violation")
 
         self.observation_dict = OrderedDict()
         self.observation_history_dict = defaultdict(list)
-        try:
-            self._is_PM_model = configs["vehicle_params"]["vehicle_model"] == 0
-        except KeyError:
-            pass
 
     def build_observation_space(self) -> OrderedDict:
         observation_space_dict = OrderedDict()
@@ -60,12 +64,16 @@ class EgoObservation(Observation):
                 observation_space_dict["a_ego"] = gym.spaces.Box(-np.inf, np.inf, (2,), dtype=np.float32)
             else:
                 observation_space_dict["a_ego"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
-        if self.observe_steering_angle and not self._is_PM_model:
+        if self.observe_jerk_ego:
+            observation_space_dict["jerk_ego"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
+        if self.observe_steering_angle:
             observation_space_dict["steering_angle"] = gym.spaces.Box(-np.pi, np.pi, (1,), dtype=np.float32)
-        if self.observe_relative_heading and not self._is_PM_model:
+        if self.observe_relative_heading:
             observation_space_dict["relative_heading"] = gym.spaces.Box(-np.pi, np.pi, (1,), dtype=np.float32)
-        if self.observe_global_turn_rate and not self._is_PM_model:
+        if self.observe_global_turn_rate:
             observation_space_dict["global_turn_rate"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
+        if self.observe_slip_angle:
+            observation_space_dict["slip_angle"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
         if self.observe_is_friction_violation:
             observation_space_dict["is_friction_violation"] = gym.spaces.Box(0, 1, (1,), dtype=np.int8)
         if self.observe_remaining_steps:
@@ -91,15 +99,21 @@ class EgoObservation(Observation):
             else:
                 self.observation_dict["a_ego"] = np.array([ego_state.acceleration])
 
-        if self.observe_steering_angle and ego_vehicle.vehicle_model != VehicleModel.PM:
+        if self.observe_jerk_ego:
+            self.observation_dict["jerk_ego"] = np.array([ego_state.jerk])
+
+        if self.observe_steering_angle:
             self.observation_dict["steering_angle"] = np.array([ego_state.steering_angle])
 
-        if self.observe_relative_heading and ego_vehicle.vehicle_model != VehicleModel.PM:
+        if self.observe_relative_heading:
             relative_heading = EgoObservation.get_lane_relative_heading(ego_state, ego_lanelet)
             self.observation_dict["relative_heading"] = relative_heading
 
-        if self.observe_global_turn_rate and ego_vehicle.vehicle_model != VehicleModel.PM:
+        if self.observe_global_turn_rate:
             self.observation_dict["global_turn_rate"] = np.array([ego_state.yaw_rate])
+
+        if self.observe_slip_angle:
+            self.observation_dict["slip_angle"] = np.array([ego_state.slip_angle])
 
         if self.observe_is_friction_violation:
             is_friction_violation = self._check_friction_violation(ego_vehicle)

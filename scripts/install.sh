@@ -7,9 +7,6 @@ echo $JOBS
 NO_ROOT="FALSE"
 ENV=""
 
-INSTALL_FOLDER="external"
-INSTALL_DIR="$(pwd)/$INSTALL_FOLDER"
-
 # Parse args
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -126,7 +123,7 @@ fi
 print_info "Installing MPI, try to remove existing installations and install with conda mpi4py"
 pip uninstall --quiet -y mpi4py 
 conda uninstall --quiet -y  mpi4py 
-conda install --quiet -y  mpi4py || exit_with_error "conda install mpi4py failed"
+conda install --quiet -y  -c conda-forge mpi4py==3.1.3 # || exit_with_error "conda install mpi4py failed"
 
 print_info "When dependencies are already installed, press ctrl+c once to skip when asked for sudo password"
 print_info "Installing mpi dependencies"
@@ -143,18 +140,28 @@ require_sudo apt-get install -y libomp-dev libcgal-dev libgmp-dev libglu1-mesa-d
 print_info "Installing commonroad_rl with pip"
 pip install --quiet -e .\[utils_run,tests\]
 
-cd_to_installdir 
+print_info "Installing commonroad-io"
+safe_cd external/commonroad-io
+pip install -e .
+cd ../..
 
-safe_cd commonroad-drivability-checker
+
+safe_cd external/commonroad-drivability-checker
 print_info "Building commonroad-drivability-checker"
 # rebuilding cannot be avoided since this also installs packages in global scope that cannot be cached
 if [ "${NO_ROOT}" == "TRUE" ]; then
-  bash build.sh -e "$CONDA_PREFIX" -v $PYTHON_VERSION --serializer --install --wheel --no-root -j $JOBS > /dev/null 2>&1
+  bash build.sh -e "$CONDA_PREFIX" -v $PYTHON_VERSION --serializer --install  --wheel --no-root -j $JOBS > /dev/null 2>&1
 else
-  bash build.sh -e "$CONDA_PREFIX" -v $PYTHON_VERSION --serializer --install --wheel -j $JOBS > /dev/null 2>&1
+  bash build.sh -e "$CONDA_PREFIX" -v $PYTHON_VERSION --serializer --install  --wheel -j $JOBS > /dev/null 2>&1
 fi
+cd ../..
 
+# CommonRoad Route Planner
+safe_cd external/commonroad-route-planner 
+print_warning "Installing commonroad-route-planner"
+
+python setup.py install
 cd_to_installdir
-print_info "Installation script completed, please run the unit tests to verify."
+print_info "Installation script completed, please run the unit tests to verify.　pytest commonroad_rl/tests --scope unit module -m 'not slow'"
 sleep 3
 exit 0
