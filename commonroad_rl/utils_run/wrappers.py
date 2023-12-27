@@ -81,6 +81,7 @@ class IncreaseTimeStepWrapper(gym.Wrapper):
     """
     Wrapper for increasing the time step size of the environment
     """
+
     def __init__(self, env):
         """
         initialization for wrapper

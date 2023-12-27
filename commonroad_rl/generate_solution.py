@@ -15,14 +15,23 @@ import gym
 import yaml
 import warnings
 import numpy as np
-from commonroad.common.solution import (PlanningProblemSolution, Solution, CostFunction, CommonRoadSolutionWriter,
-                                        TrajectoryType, )
+from commonroad.common.solution import (
+    PlanningProblemSolution,
+    Solution,
+    CostFunction,
+    CommonRoadSolutionWriter,
+    TrajectoryType,
+)
 from commonroad.scenario.scenario import ScenarioID, Scenario
 from commonroad.common.solution import VehicleModel
 from commonroad.planning.planning_problem import PlanningProblemSet
 from commonroad.scenario.trajectory import Trajectory, State
-from commonroad_dc.feasibility.solution_checker import valid_solution, _simulate_trajectory_if_input_vector, \
-    GoalNotReachedException, CollisionException
+from commonroad_dc.feasibility.solution_checker import (
+    valid_solution,
+    _simulate_trajectory_if_input_vector,
+    GoalNotReachedException,
+    CollisionException,
+)
 from gym import Env
 
 from commonroad_rl.utils_run.vec_env import CommonRoadVecEnv
@@ -39,29 +48,50 @@ LOGGER.addHandler(handler)
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="Evaluates PPO2 trained model with specified test scenarios",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="Evaluates PPO2 trained model with specified test scenarios",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
     parser.add_argument("--algo", type=str, default="ppo2")
-    parser.add_argument("--test_path", "-i", type=str, help="Path to pickled test scenarios",
-                        default=PATH_PARAMS["test_reset_config"], )
+    parser.add_argument(
+        "--test_path",
+        "-i",
+        type=str,
+        help="Path to pickled test scenarios",
+        default=PATH_PARAMS["test_reset_config"],
+    )
     parser.add_argument("--model_path", "-model", type=str, help="Path to trained model", required=True)
     parser.add_argument("--multiprocessing", "-mpi", action="store_true")
-    parser.add_argument("--solution_path", "-sol", type=str,
-                        help="Path to the desired directory of the generated solution files",
-                        default=PATH_PARAMS["commonroad_solution"], )
+    parser.add_argument(
+        "--solution_path",
+        "-sol",
+        type=str,
+        help="Path to the desired directory of the generated solution files",
+        default=PATH_PARAMS["commonroad_solution"],
+    )
     parser.add_argument("--cost_function", "-cost", type=str, default="JB1")
     parser.add_argument("--hyperparam_filename", "-f", type=str, default="model_hyperparameters.yml")
     parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument("--debug", action="store_true", help="Debug mode (overrides verbose mode)")
-    parser.add_argument("--config_filename", "-config_f", type=str, default="environment_configurations.yml", )
+    parser.add_argument(
+        "--config_filename",
+        "-config_f",
+        type=str,
+        default="environment_configurations.yml",
+    )
 
     return parser
 
 
-def create_solution(commonroad_env: CommonroadEnv, output_directory: str, cost_function: str,
-                    computation_time: Union[float, None] = None, processor_name: Union[str, None] = "auto",
-                    input_trajectory: bool = True) -> bool:
+def create_solution(
+    commonroad_env: CommonroadEnv,
+    output_directory: str,
+    cost_function: str,
+    computation_time: Union[float, None] = None,
+    processor_name: Union[str, None] = "auto",
+    input_trajectory: bool = True,
+) -> bool:
     """
     Creates a CommonRoad solution file from the terminated environment
 
@@ -82,25 +112,45 @@ def create_solution(commonroad_env: CommonroadEnv, output_directory: str, cost_f
                 if state.time_step == 0:
                     # skipping first accelerations since they are not executed
                     continue
-                kwarg = {"time_step": state.time_step-1, # shift time step for input states
-                         "acceleration": state.acceleration, "acceleration_y": state.acceleration_y}
+                kwarg = {
+                    "time_step": state.time_step - 1,  # shift time step for input states
+                    "acceleration": state.acceleration,
+                    "acceleration_y": state.acceleration_y,
+                }
             else:
-                kwarg = {"position": state.position, "velocity": state.velocity, "velocity_y": state.velocity_y,
-                         "time_step": state.time_step, "orientation": np.arctan2(state.velocity_y, state.velocity)}
+                kwarg = {
+                    "position": state.position,
+                    "velocity": state.velocity,
+                    "velocity_y": state.velocity_y,
+                    "time_step": state.time_step,
+                    "orientation": np.arctan2(state.velocity_y, state.velocity),
+                }
         else:
-            kwarg = {"position": state.position, "velocity": state.velocity, "steering_angle": state.steering_angle,
-                     "orientation": state.orientation, "time_step": state.time_step}
+            kwarg = {
+                "position": state.position,
+                "velocity": state.velocity,
+                "steering_angle": state.steering_angle,
+                "orientation": state.orientation,
+                "time_step": state.time_step,
+            }
         list_state.append(State(**kwarg))
 
     trajectory = Trajectory(initial_time_step=list_state[0].time_step, state_list=list_state)
 
     planning_problem_solution = PlanningProblemSolution(
-            planning_problem_id=commonroad_env.planning_problem.planning_problem_id, vehicle_model=model_type,
-            vehicle_type=ego_vehicle.vehicle_type, cost_function=CostFunction[cost_function], trajectory=trajectory, )
+        planning_problem_id=commonroad_env.planning_problem.planning_problem_id,
+        vehicle_model=model_type,
+        vehicle_type=ego_vehicle.vehicle_type,
+        cost_function=CostFunction[cost_function],
+        trajectory=trajectory,
+    )
     scenario_id = ScenarioID.from_benchmark_id(commonroad_env.benchmark_id, "2020a")
-    solution = Solution(scenario_id=scenario_id,  # TODO: wrong usage, fix in commonroad environment to use scenario_id
-                        planning_problem_solutions=[planning_problem_solution], computation_time=computation_time,
-                        processor_name=processor_name, )
+    solution = Solution(
+        scenario_id=scenario_id,  # TODO: wrong usage, fix in commonroad environment to use scenario_id
+        planning_problem_solutions=[planning_problem_solution],
+        computation_time=computation_time,
+        processor_name=processor_name,
+    )
 
     # # =================================== DEBUG ============================================================
     # planned_list = []
@@ -114,8 +164,11 @@ def create_solution(commonroad_env: CommonroadEnv, output_directory: str, cost_f
     # # ===================================  END ============================================================
     # Check the solution
     LOGGER.debug(f"Check solution of {commonroad_env.benchmark_id}")
-    solution_valid, results = valid_solution(commonroad_env.scenario,
-                                             PlanningProblemSet([commonroad_env.planning_problem]), solution, )
+    solution_valid, results = valid_solution(
+        commonroad_env.scenario,
+        PlanningProblemSet([commonroad_env.planning_problem]),
+        solution,
+    )
     if solution_valid:
         # write solution to a xml file
         csw = CommonRoadSolutionWriter(solution=solution)
@@ -126,11 +179,19 @@ def create_solution(commonroad_env: CommonroadEnv, output_directory: str, cost_f
     return solution_valid
 
 
-def solve_scenarios(test_path: str, model_path: str, algo: str, solution_path: str, cost_function: str,
-                    multiprocessing: bool = False, hyperparam_filename: str = "model_hyperparameters.yml",
-                    config_filename: str = "environment_configurations.yml", env_id: str = "commonroad-v1",
-                    render: bool = False, model_name="best_model"
-                    ) -> List[bool]:
+def solve_scenarios(
+    test_path: str,
+    model_path: str,
+    algo: str,
+    solution_path: str,
+    cost_function: str,
+    multiprocessing: bool = False,
+    hyperparam_filename: str = "model_hyperparameters.yml",
+    config_filename: str = "environment_configurations.yml",
+    env_id: str = "commonroad-v1",
+    render: bool = False,
+    model_name="best_model",
+) -> List[bool]:
     """
     Solve a batch of scenarios using a trained model
 
@@ -163,8 +224,10 @@ def solve_scenarios(test_path: str, model_path: str, algo: str, solution_path: s
     env_kwargs["termination_configs"].update({"terminate_on_friction_violation": False})
     env_kwargs["goal_configs"].update({"relax_is_goal_reached": False})
     env_kwargs.update(
-        {"meta_scenario_path": os.path.join(test_path, 'meta_scenario'),
-         "test_reset_config_path": os.path.join(test_path, 'problem_test')}
+        {
+            "meta_scenario_path": os.path.join(test_path, "meta_scenario"),
+            "test_reset_config_path": os.path.join(test_path, "problem_test"),
+        }
     )
 
     def env_fn():
@@ -219,13 +282,19 @@ def solve_scenarios(test_path: str, model_path: str, algo: str, solution_path: s
     return results
 
 
-def write_solution_file(scenario: Scenario,
-                        planning_problem_set: PlanningProblemSet,
-                        solution: Solution, output_directory: str, planned_list: List[State]) -> bool:
+def write_solution_file(
+    scenario: Scenario,
+    planning_problem_set: PlanningProblemSet,
+    solution: Solution,
+    output_directory: str,
+    planned_list: List[State],
+) -> bool:
     # print(f"Check validity of solution for {scenario.benchmark_id}")
     import matplotlib
+
     matplotlib.use("TkAgg")
     import matplotlib.pyplot as plt
+
     try:
         solution_valid, results = valid_solution(scenario, planning_problem_set, solution)
     except FeasibilityException as e:
@@ -234,21 +303,45 @@ def write_solution_file(scenario: Scenario,
         # draw inputs
         plt.figure()
         plt.subplot(2, 1, 1)
-        plt.plot(list(range(len(planned_input_list))),
-                 [state.steering_angle_speed for state in planned_input_list], color="black", label="planned")
-        plt.plot([0, len(planned_input_list)], [veh_params.steering.v_min, veh_params.steering.v_min],
-                 color="red", label="bounds")
-        plt.plot([0, len(planned_input_list)], [veh_params.steering.v_max, veh_params.steering.v_max],
-                 color="red", label="bounds")
+        plt.plot(
+            list(range(len(planned_input_list))),
+            [state.steering_angle_speed for state in planned_input_list],
+            color="black",
+            label="planned",
+        )
+        plt.plot(
+            [0, len(planned_input_list)],
+            [veh_params.steering.v_min, veh_params.steering.v_min],
+            color="red",
+            label="bounds",
+        )
+        plt.plot(
+            [0, len(planned_input_list)],
+            [veh_params.steering.v_max, veh_params.steering.v_max],
+            color="red",
+            label="bounds",
+        )
         plt.legend()
         plt.ylabel("steering angle velocity")
         plt.subplot(2, 1, 2)
-        plt.plot(list(range(len(planned_input_list))),
-                 [state.acceleration for state in planned_input_list], color="black", label="planned")
-        plt.plot([0, len(planned_input_list)], [-veh_params.longitudinal.a_max, -veh_params.longitudinal.a_max],
-                 color="red", label="bounds")
-        plt.plot([0, len(planned_input_list)], [veh_params.longitudinal.a_max, veh_params.longitudinal.a_max],
-                 color="red", label="bounds")
+        plt.plot(
+            list(range(len(planned_input_list))),
+            [state.acceleration for state in planned_input_list],
+            color="black",
+            label="planned",
+        )
+        plt.plot(
+            [0, len(planned_input_list)],
+            [-veh_params.longitudinal.a_max, -veh_params.longitudinal.a_max],
+            color="red",
+            label="bounds",
+        )
+        plt.plot(
+            [0, len(planned_input_list)],
+            [veh_params.longitudinal.a_max, veh_params.longitudinal.a_max],
+            color="red",
+            label="bounds",
+        )
         plt.ylabel("acceleration")
         plt.show()
 
@@ -259,9 +352,9 @@ def write_solution_file(scenario: Scenario,
         csw = CommonRoadSolutionWriter(solution=solution)
         csw.write_to_file(output_path=output_directory, overwrite=True)
         planning_problem_solution = solution.planning_problem_solutions[0]
-        _, reconstructed_trajectory = _simulate_trajectory_if_input_vector(planning_problem_set,
-                                                                           planning_problem_solution,
-                                                                           scenario.dt)
+        _, reconstructed_trajectory = _simulate_trajectory_if_input_vector(
+            planning_problem_set, planning_problem_solution, scenario.dt
+        )
         for state in reconstructed_trajectory.state_list:
             state.orientation = np.arctan2(state.velocity_y, state.velocity)
 
@@ -299,18 +392,33 @@ def write_solution_file(scenario: Scenario,
             reconstructed_input_list = results[1][1].state_list
             plt.figure()
             plt.subplot(2, 1, 1)
-            plt.plot(list(range(len(planned_input_list))),
-                     [state.steering_angle_speed for state in planned_input_list], color="black", label="planned")
-            plt.plot(list(range(len(reconstructed_input_list))),
-                     [state.steering_angle_speed for state in reconstructed_input_list], color="blue",
-                     label="reconstructed")
+            plt.plot(
+                list(range(len(planned_input_list))),
+                [state.steering_angle_speed for state in planned_input_list],
+                color="black",
+                label="planned",
+            )
+            plt.plot(
+                list(range(len(reconstructed_input_list))),
+                [state.steering_angle_speed for state in reconstructed_input_list],
+                color="blue",
+                label="reconstructed",
+            )
             plt.legend()
             plt.ylabel("steering angle velocity")
             plt.subplot(2, 1, 2)
-            plt.plot(list(range(len(planned_input_list))),
-                     [state.acceleration for state in planned_input_list], color="black", label="planned")
-            plt.plot(list(range(len(reconstructed_input_list))),
-                     [state.acceleration for state in reconstructed_input_list], color="blue", label="reconstructed")
+            plt.plot(
+                list(range(len(planned_input_list))),
+                [state.acceleration for state in planned_input_list],
+                color="black",
+                label="planned",
+            )
+            plt.plot(
+                list(range(len(reconstructed_input_list))),
+                [state.acceleration for state in reconstructed_input_list],
+                color="blue",
+                label="reconstructed",
+            )
             plt.ylabel("acceleration")
             plt.show()
 
@@ -344,6 +452,13 @@ if __name__ == "__main__":
     if args.debug:
         LOGGER.setLevel(logging.DEBUG)
 
-    solve_scenarios(args.test_path, args.model_path, args.algo, args.solution_path, args.cost_function,
-                    multiprocessing=args.multiprocessing, hyperparam_filename=args.hyperparam_filename,
-                    config_filename=args.config_filename, )
+    solve_scenarios(
+        args.test_path,
+        args.model_path,
+        args.algo,
+        args.solution_path,
+        args.cost_function,
+        multiprocessing=args.multiprocessing,
+        hyperparam_filename=args.hyperparam_filename,
+        config_filename=args.config_filename,
+    )

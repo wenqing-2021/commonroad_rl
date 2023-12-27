@@ -4,11 +4,13 @@ import importlib
 import os
 import re
 import logging
+
 LOGGER = logging.getLogger(__name__)
 
 import gym
 import yaml
 import numpy as np
+
 try:
     import pybullet_envs
 except ImportError:
@@ -42,6 +44,7 @@ from stable_baselines.common.cmd_util import make_atari_env
 from stable_baselines.common import set_global_seeds, BaseRLModel
 
 from commonroad_rl.gym_commonroad.constants import PATH_PARAMS
+
 ALGOS = {
     "a2c": A2C,
     "acer": ACER,
@@ -93,9 +96,7 @@ class CRVecNormalize(SBVecNormalize):
 
     def __getattr__(self, name):
         if name.startswith("_"):
-            raise AttributeError(
-                "attempted to get missing private attribute '{}'".format(name)
-            )
+            raise AttributeError("attempted to get missing private attribute '{}'".format(name))
         return getattr(self.vec_normalize, name)
 
     def reset(self, **kwargs):
@@ -110,7 +111,9 @@ class CRVecNormalize(SBVecNormalize):
         return self.normalize_obs(obs)
 
 
-def load_model_and_vecnormalize(model_path: str, algo: str, normalize: bool, env: gym.Env, model_name="best_model") -> BaseRLModel:
+def load_model_and_vecnormalize(
+    model_path: str, algo: str, normalize: bool, env: gym.Env, model_name="best_model"
+) -> BaseRLModel:
     """
     Load trained model and corresponding vecnormalize.pkl
     :param model_path: Path to folder containing the trained model
@@ -144,7 +147,7 @@ def load_model_and_vecnormalize(model_path: str, algo: str, normalize: bool, env
         env = CRVecNormalize(vec_normalize_env)
     else:
         raise FileNotFoundError(f"vecnormalize.pkl not found in {vec_normalize_path}")
-        
+
     # During testing the vecnormalize should not update the moving average
     env.training = False
     LOGGER.info(f"Loading model from {model_path}")
@@ -230,15 +233,15 @@ def get_wrapper_class(hyperparams):
 
 
 def make_env(
-        env_id,
-        rank=0,
-        seed=0,
-        log_dir=None,
-        logging_path=None,
-        wrapper_class=None,
-        env_kwargs=None,
-        subproc=False,
-        info_keywords=(),
+    env_id,
+    rank=0,
+    seed=0,
+    log_dir=None,
+    logging_path=None,
+    wrapper_class=None,
+    env_kwargs=None,
+    subproc=False,
+    info_keywords=(),
 ):
     """
     Helper function to multiprocess training
@@ -270,11 +273,13 @@ def make_env(
         if subproc and ("commonroad" in env_id or env_id == "cr-monitor-v0"):
             train_reset_config_path = env_kwargs.pop("train_reset_config_path", PATH_PARAMS["train_reset_config"])
             test_reset_config_path = env_kwargs.pop("test_reset_config_path", PATH_PARAMS["test_reset_config"])
-            env = gym.make(env_id,
-                           train_reset_config_path=os.path.join(train_reset_config_path, str(rank)),
-                           test_reset_config_path=os.path.join(test_reset_config_path, str(rank)),
-                           logging_path=logging_path,
-                           **env_kwargs)
+            env = gym.make(
+                env_id,
+                train_reset_config_path=os.path.join(train_reset_config_path, str(rank)),
+                test_reset_config_path=os.path.join(test_reset_config_path, str(rank)),
+                logging_path=logging_path,
+                **env_kwargs,
+            )
         else:
             env = gym.make(env_id, logging_path=logging_path, **env_kwargs)
 
@@ -292,15 +297,15 @@ def make_env(
 
 
 def create_test_env(
-        env_id,
-        n_envs=1,
-        is_atari=False,
-        stats_path=None,
-        seed=0,
-        log_dir="",
-        should_render=True,
-        hyperparams=None,
-        env_kwargs=None,
+    env_id,
+    n_envs=1,
+    is_atari=False,
+    stats_path=None,
+    seed=0,
+    log_dir="",
+    should_render=True,
+    hyperparams=None,
+    env_kwargs=None,
 ):
     """
     Create environment for testing a trained agent
@@ -394,9 +399,7 @@ def create_test_env(
             env = SBVecNormalize(env, training=False, **hyperparams["normalize_kwargs"])
 
             if os.path.exists(os.path.join(stats_path, "vecnormalize.pkl")):
-                env = SBVecNormalize.load(
-                    os.path.join(stats_path, "vecnormalize.pkl"), env
-                )
+                env = SBVecNormalize.load(os.path.join(stats_path, "vecnormalize.pkl"), env)
                 # Deactivate training and reward normalization
                 env.training = False
                 env.norm_reward = False
@@ -463,11 +466,7 @@ def get_latest_run_id(log_path, env_id):
     for path in glob.glob(log_path + "/{}_[0-9]*".format(env_id)):
         file_name = path.split("/")[-1]
         ext = file_name.split("_")[-1]
-        if (
-                env_id == "_".join(file_name.split("_")[:-1])
-                and ext.isdigit()
-                and int(ext) > max_run_id
-        ):
+        if env_id == "_".join(file_name.split("_")[:-1]) and ext.isdigit() and int(ext) > max_run_id:
             max_run_id = int(ext)
     return max_run_id
 
@@ -488,9 +487,7 @@ def get_saved_hyperparams(stats_path, norm_reward=False, test_mode=False):
         if os.path.isfile(config_file):
             # Load saved hyperparameters
             with open(os.path.join(stats_path, "config.yml"), "r") as f:
-                hyperparams = yaml.load(
-                    f, Loader=yaml.UnsafeLoader
-                )  # pytype: disable=module-attr
+                hyperparams = yaml.load(f, Loader=yaml.UnsafeLoader)  # pytype: disable=module-attr
             hyperparams["normalize"] = hyperparams.get("normalize", False)
         else:
             obs_rms_path = os.path.join(stats_path, "obs_rms.pkl")
@@ -532,9 +529,7 @@ def find_saved_model(algo, log_path, env_id, load_best=False):
         found = os.path.isfile(model_path)
 
     if not found:
-        raise ValueError(
-            "No model found for {} on {}, path: {}".format(algo, env_id, model_path)
-        )
+        raise ValueError("No model found for {} on {}, path: {}".format(algo, env_id, model_path))
     return model_path
 
 
@@ -559,8 +554,8 @@ class StoreDict(argparse.Action):
             arg_dict[key] = eval(value)
             setattr(namespace, self.dest, arg_dict)
 
+
 if __name__ == "__main__":
     with open("model_hyperparameters.yml", "r") as f:
         hyperparams = yaml.load(f, Loader=yaml.Loader)
     get_wrapper_class(hyperparams)
-

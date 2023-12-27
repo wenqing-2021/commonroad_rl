@@ -45,7 +45,9 @@ class LaneletNetworkObservation(Observation):
         self.distances_route_reference_path: List[float] = configs.get("distances_route_reference_path")
         # reference lanelets waypoints configs
         self.observe_route_multilanelet_waypoints: bool = configs.get("observe_route_multilanelet_waypoints")
-        self.distances_and_ids_multilanelet_waypoints: Tuple[List[float], List[int]] = configs.get("distances_and_ids_multilanelet_waypoints")
+        self.distances_and_ids_multilanelet_waypoints: Tuple[List[float], List[int]] = configs.get(
+            "distances_and_ids_multilanelet_waypoints"
+        )
         # distance to reference path
         self.observe_distance_togoal_via_referencepath: bool = configs.get("observe_distance_togoal_via_referencepath")
 
@@ -53,7 +55,7 @@ class LaneletNetworkObservation(Observation):
         self.observation_history_dict = defaultdict(list)
 
     def build_observation_space(self) -> OrderedDict:
-        """ builds observation space for LaneletNetworkObservation """
+        """builds observation space for LaneletNetworkObservation"""
         observation_space_dict = OrderedDict()
 
         if self.observe_is_off_road:
@@ -73,18 +75,19 @@ class LaneletNetworkObservation(Observation):
 
         if self.observe_dynamic_extrapolated_positions:
             sampling_points = self.dynamic_extrapolation_samples
-            observation_space_dict["extrapolation_dynamic_off"] = gym.spaces.Box(-np.inf, np.inf,
-                                                                                 (len(sampling_points),),
-                                                                                 dtype=np.float32)
+            observation_space_dict["extrapolation_dynamic_off"] = gym.spaces.Box(
+                -np.inf, np.inf, (len(sampling_points),), dtype=np.float32
+            )
         if self.observe_static_extrapolated_positions:
             sampling_points = self.static_extrapolation_samples
-            observation_space_dict["extrapolation_static_off"] = gym.spaces.Box(-np.inf, np.inf,
-                                                                                (len(sampling_points),),
-                                                                                dtype=np.float32)
+            observation_space_dict["extrapolation_static_off"] = gym.spaces.Box(
+                -np.inf, np.inf, (len(sampling_points),), dtype=np.float32
+            )
         if self.observe_route_reference_path:
             distances = self.distances_route_reference_path
-            assert sorted(set(distances)) == sorted(distances) and all(isinstance(x, int) or isinstance(x, float) for x in distances), \
-                "the config setting distances_and_ids_multilanelet_waypoints[0] / distances must be a set of floats"
+            assert sorted(set(distances)) == sorted(distances) and all(
+                isinstance(x, int) or isinstance(x, float) for x in distances
+            ), "the config setting distances_and_ids_multilanelet_waypoints[0] / distances must be a set of floats"
             observation_space_dict["route_reference_path_positions"] = gym.spaces.Box(
                 -np.inf, np.inf, (len(distances) * 2,), dtype=np.float32
             )
@@ -93,27 +96,35 @@ class LaneletNetworkObservation(Observation):
             )
         if self.observe_route_multilanelet_waypoints:
             distances, ids = self.distances_and_ids_multilanelet_waypoints
-            assert sorted(set(distances)) == sorted(distances) and all(isinstance(x, int) or isinstance(x, float) for x in distances), \
-                "the config setting distances_and_ids_multilanelet_waypoints[0] / distances must be a set of float/int"
-            assert sorted(set(ids)) == sorted(ids) and all(isinstance(x, int) for x in ids), \
-                "the config setting distances_and_ids_multilanelet_waypoints[1] / relative ids must be a set of ints"
+            assert sorted(set(distances)) == sorted(distances) and all(
+                isinstance(x, int) or isinstance(x, float) for x in distances
+            ), "the config setting distances_and_ids_multilanelet_waypoints[0] / distances must be a set of float/int"
+            assert sorted(set(ids)) == sorted(ids) and all(
+                isinstance(x, int) for x in ids
+            ), "the config setting distances_and_ids_multilanelet_waypoints[1] / relative ids must be a set of ints"
 
-            observation_space_dict["route_multilanelet_waypoints_positions"] = gym.spaces.Box(-np.inf, np.inf,
-                                                                                (len(ids) * len(distances) * 2,),
-                                                                                dtype=np.float32)
-            observation_space_dict["route_multilanelet_waypoints_orientations"] = gym.spaces.Box(-np.inf, np.inf,
-                                                                                (len(ids) * len(distances), ),
-                                                                                dtype=np.float32)
+            observation_space_dict["route_multilanelet_waypoints_positions"] = gym.spaces.Box(
+                -np.inf, np.inf, (len(ids) * len(distances) * 2,), dtype=np.float32
+            )
+            observation_space_dict["route_multilanelet_waypoints_orientations"] = gym.spaces.Box(
+                -np.inf, np.inf, (len(ids) * len(distances),), dtype=np.float32
+            )
         if self.observe_distance_togoal_via_referencepath:
-            observation_space_dict["distance_togoal_via_referencepath"] = gym.spaces.Box(-np.inf, np.inf,
-                                                                                (3,),
-                                                                                dtype=np.float32)
+            observation_space_dict["distance_togoal_via_referencepath"] = gym.spaces.Box(
+                -np.inf, np.inf, (3,), dtype=np.float32
+            )
 
         return observation_space_dict
 
-    def observe(self, scenario: Scenario, ego_vehicle: Vehicle, ego_lanelet: Lanelet, road_edge: dict,
-                local_ccosy: Union[None, CurvilinearCoordinateSystem] = None, navigator: Union[Navigator, None] = None
-                ) -> Union[ndarray, Dict]:
+    def observe(
+        self,
+        scenario: Scenario,
+        ego_vehicle: Vehicle,
+        ego_lanelet: Lanelet,
+        road_edge: dict,
+        local_ccosy: Union[None, CurvilinearCoordinateSystem] = None,
+        navigator: Union[Navigator, None] = None,
+    ) -> Union[ndarray, Dict]:
         self._scenario = scenario
 
         # Check if the ego vehicle is off road
@@ -123,8 +134,14 @@ class LaneletNetworkObservation(Observation):
             self.observation_history_dict["is_off_road"].append(is_off_road)
             self.observation_dict["is_off_road"] = np.array([is_off_road])
 
-        if any((self.observe_left_marker_distance, self.observe_right_marker_distance,
-                self.observe_left_road_edge_distance, self.observe_right_road_edge_distance)):
+        if any(
+            (
+                self.observe_left_marker_distance,
+                self.observe_right_marker_distance,
+                self.observe_left_road_edge_distance,
+                self.observe_right_road_edge_distance,
+            )
+        ):
             self._get_distance_to_marker_and_road_edge(ego_vehicle.state, ego_lanelet, road_edge)
 
         # TODO: merge two functions to reduce run time
@@ -137,26 +154,29 @@ class LaneletNetworkObservation(Observation):
         # Get the relative offset of current and future positions from center vertices TODO
         if self.observe_static_extrapolated_positions:
             sampling_points = self.static_extrapolation_samples
-            static_lat_offset, static_pos = self._get_relative_future_goal_offsets(ego_vehicle.state, sampling_points,
-                                                                                   static=True, navigator=navigator)
+            static_lat_offset, static_pos = self._get_relative_future_goal_offsets(
+                ego_vehicle.state, sampling_points, static=True, navigator=navigator
+            )
 
-            self._extrapolation_static_off = (np.array(static_lat_offset))
-            self._extrapolation_static_pos = (np.array(static_pos))
+            self._extrapolation_static_off = np.array(static_lat_offset)
+            self._extrapolation_static_pos = np.array(static_pos)
             self.observation_dict["extrapolation_static_off"] = np.array(static_lat_offset)
 
         if self.observe_dynamic_extrapolated_positions:
             sampling_points = self.dynamic_extrapolation_samples
-            dynamic_lat_offset, dynamic_pos = self._get_relative_future_goal_offsets(ego_vehicle.state, sampling_points,
-                                                                                     static=False, navigator=navigator)
-            self._extrapolation_dynamic_off = (np.array(dynamic_lat_offset))
-            self._extrapolation_dynamic_pos = (np.array(dynamic_pos))
+            dynamic_lat_offset, dynamic_pos = self._get_relative_future_goal_offsets(
+                ego_vehicle.state, sampling_points, static=False, navigator=navigator
+            )
+            self._extrapolation_dynamic_off = np.array(dynamic_lat_offset)
+            self._extrapolation_dynamic_pos = np.array(dynamic_pos)
             self.observation_dict["extrapolation_dynamic_off"] = np.array(dynamic_lat_offset)
 
         # get waypoints of the reference path
         if self.observe_route_reference_path:
             pos, orient = navigator.get_waypoints_of_reference_path(
-                ego_vehicle.state, distances_ref_path=self.distances_route_reference_path,
-                observation_cos=Navigator.CosyVehicleObservation.AUTOMATIC
+                ego_vehicle.state,
+                distances_ref_path=self.distances_route_reference_path,
+                observation_cos=Navigator.CosyVehicleObservation.AUTOMATIC,
             )
             assert pos.shape == (len(self.distances_route_reference_path), 2)
             assert orient.shape == (len(self.distances_route_reference_path),)
@@ -168,72 +188,121 @@ class LaneletNetworkObservation(Observation):
             distances, ids = self.distances_and_ids_multilanelet_waypoints
 
             pos, orient = navigator.get_referencepath_multilanelets_waypoints(
-                ego_vehicle.state, distances_per_lanelet=distances, lanelets_id_rel=ids,
-                observation_cos=Navigator.CosyVehicleObservation.AUTOMATIC
+                ego_vehicle.state,
+                distances_per_lanelet=distances,
+                lanelets_id_rel=ids,
+                observation_cos=Navigator.CosyVehicleObservation.AUTOMATIC,
             )
             self.observation_dict["route_multilanelet_waypoints_positions"] = pos.flatten()
             self.observation_dict["route_multilanelet_waypoints_orientations"] = orient.flatten()
-        
+
         if self.observe_distance_togoal_via_referencepath:
             distance_long, distance_lat, indomain = navigator.get_longlat_togoal_on_reference_path(ego_vehicle.state)
-            self.observation_dict["distance_togoal_via_referencepath"] = np.array((distance_long, distance_lat, indomain))
+            self.observation_dict["distance_togoal_via_referencepath"] = np.array(
+                (distance_long, distance_lat, indomain)
+            )
 
         return self.observation_dict
 
-    def draw(self, render_configs: Dict, render: MPRenderer, ego_vehicle: Vehicle, road_edge: Union[None, Dict] = None,
-             ego_lanelet: Union[Lanelet, None] = None, navigator: Union[Navigator, None] = None):
-        """ Method to draw the observation """
+    def draw(
+        self,
+        render_configs: Dict,
+        render: MPRenderer,
+        ego_vehicle: Vehicle,
+        road_edge: Union[None, Dict] = None,
+        ego_lanelet: Union[Lanelet, None] = None,
+        navigator: Union[Navigator, None] = None,
+    ):
+        """Method to draw the observation"""
         # Draw road boundaries
         if render_configs["render_road_boundaries"]:
             road_edge["boundary_collision_object"].draw(render)
         # Plot ego lanelet center vertices
         if render_configs["render_ego_lanelet_center_vertices"]:
-            line = LineDataUnits(ego_lanelet.center_vertices[:, 0], ego_lanelet.center_vertices[:, 1],
-                                 zorder=ZOrders.LANELET_LABEL, markersize=1., color="pink",
-                                 marker="x", label="Ego center vertices")
+            line = LineDataUnits(
+                ego_lanelet.center_vertices[:, 0],
+                ego_lanelet.center_vertices[:, 1],
+                zorder=ZOrders.LANELET_LABEL,
+                markersize=1.0,
+                color="pink",
+                marker="x",
+                label="Ego center vertices",
+            )
             render.dynamic_artists.append(line)
 
         # Extrapolated future positions
         if self.observe_static_extrapolated_positions and render_configs["render_static_extrapolated_positions"]:
             for future_pos in self._extrapolation_static_pos:
                 render.dynamic_artists.append(
-                    LineDataUnits(future_pos[0], future_pos[1], color="r", marker="x",
-                                  zorder=21, label="static_extrapolated_positions"))
+                    LineDataUnits(
+                        future_pos[0],
+                        future_pos[1],
+                        color="r",
+                        marker="x",
+                        zorder=21,
+                        label="static_extrapolated_positions",
+                    )
+                )
 
         if self.observe_dynamic_extrapolated_positions and render_configs["render_dynamic_extrapolated_positions"]:
             for future_pos in self._extrapolation_dynamic_pos:
                 render.dynamic_artists.append(
-                    LineDataUnits(future_pos[0], future_pos[1], color="b", marker="x",
-                                  zorder=21, label="dynamic_extrapolated_positions"))
+                    LineDataUnits(
+                        future_pos[0],
+                        future_pos[1],
+                        color="b",
+                        marker="x",
+                        zorder=21,
+                        label="dynamic_extrapolated_positions",
+                    )
+                )
 
         # Plot Navigator Observations in non-local (global) CoSy
         if self.observe_route_reference_path and render_configs["render_ccosy_nav_observations"]:
             pos, _ = navigator.get_waypoints_of_reference_path(
-                ego_vehicle.state, distances_ref_path=self.distances_route_reference_path,
+                ego_vehicle.state,
+                distances_ref_path=self.distances_route_reference_path,
                 observation_cos=Navigator.CosyVehicleObservation.LOCALCARTESIAN
                 # coordinate axes for plot in direction of global CoSy
             )
             pos_global = ego_vehicle.state.position + pos  # back to non local CoSy Origin
             render.dynamic_artists.append(
-                LineDataUnits(pos_global[:, 0], pos_global[:, 1], zorder=22, marker='v',
-                              color='yellow', label="ccosy_nav_observations"))
+                LineDataUnits(
+                    pos_global[:, 0],
+                    pos_global[:, 1],
+                    zorder=22,
+                    marker="v",
+                    color="yellow",
+                    label="ccosy_nav_observations",
+                )
+            )
 
         if self.observe_route_multilanelet_waypoints and render_configs["render_ccosy_nav_observations"]:
             distances, ids = self.distances_and_ids_multilanelet_waypoints
 
             pos, _ = navigator.get_referencepath_multilanelets_waypoints(
-                ego_vehicle.state, distances_per_lanelet=distances, lanelets_id_rel=ids,
+                ego_vehicle.state,
+                distances_per_lanelet=distances,
+                lanelets_id_rel=ids,
                 observation_cos=Navigator.CosyVehicleObservation.LOCALCARTESIAN
                 # coordinate axes for plot in direction of global CoSy
             )
             for po in pos:
                 po_global = ego_vehicle.state.position + po  # back to non local CoSy Origin
                 render.dynamic_artists.append(
-                    LineDataUnits(po_global[:, 0], po_global[:, 1], zorder=22, marker='v',
-                                  color='purple', label="ccosy_nav_observations"))
+                    LineDataUnits(
+                        po_global[:, 0],
+                        po_global[:, 1],
+                        zorder=22,
+                        marker="v",
+                        color="purple",
+                        label="ccosy_nav_observations",
+                    )
+                )
 
-    def _get_relative_future_goal_offsets(self, ego_state: State, sampling_points: List[float], static: bool,
-                                          navigator: Navigator) -> Tuple[List[float], List[ndarray]]:
+    def _get_relative_future_goal_offsets(
+        self, ego_state: State, sampling_points: List[float], static: bool, navigator: Navigator
+    ) -> Tuple[List[float], List[ndarray]]:
         """
         Get the relative offset of current and future positions from center vertices. Positive if left.
         For a given static extrapolation, the future position at "static" m/s after sampling_points seconds is given.
@@ -248,8 +317,11 @@ class LaneletNetworkObservation(Observation):
         :return: Offset of step_parameter future positions as well as the positions themselves
         """
 
-        ego_state_orientation = ego_state.orientation if hasattr(ego_state, "orientation") else np.arctan2(
-            ego_state.velocity_y, ego_state.velocity)
+        ego_state_orientation = (
+            ego_state.orientation
+            if hasattr(ego_state, "orientation")
+            else np.arctan2(ego_state.velocity_y, ego_state.velocity)
+        )
         v = approx_orientation_vector(ego_state_orientation) * (ego_state.velocity if static is False else 1.0)
 
         # quadratic steps may make sense based on the fact that braking distance is
@@ -277,23 +349,31 @@ class LaneletNetworkObservation(Observation):
         strict_off_road_check = self.strict_off_road_check
         non_strict_check_circle_radius = self.non_strict_check_circle_radius if not self.strict_off_road_check else None
 
-        collision_ego_vehicle = ego_vehicle.collision_object if strict_off_road_check else pycrcc.Circle(
-            non_strict_check_circle_radius, ego_vehicle.state.position[0], ego_vehicle.state.position[1])
+        collision_ego_vehicle = (
+            ego_vehicle.collision_object
+            if strict_off_road_check
+            else pycrcc.Circle(
+                non_strict_check_circle_radius, ego_vehicle.state.position[0], ego_vehicle.state.position[1]
+            )
+        )
 
         is_off_road = collision_ego_vehicle.collide(road_edge["boundary_collision_object"])
 
         return is_off_road
 
     def _get_distance_to_marker_and_road_edge(self, ego_state: State, ego_lanelet: Lanelet, road_edge: dict):
-
         left_marker_line, right_marker_line = get_lane_marker(ego_lanelet)
 
         current_left_road_edge, current_right_road_edge = self._get_road_edge(road_edge, ego_lanelet.lanelet_id)
 
-        (left_marker_distance, right_marker_distance, left_road_edge_distance, right_road_edge_distance) \
-            = LaneletNetworkObservation.get_distance_to_marker_and_road_edge(ego_state, left_marker_line,
-                                                                             right_marker_line, current_left_road_edge,
-                                                                             current_right_road_edge)
+        (
+            left_marker_distance,
+            right_marker_distance,
+            left_road_edge_distance,
+            right_road_edge_distance,
+        ) = LaneletNetworkObservation.get_distance_to_marker_and_road_edge(
+            ego_state, left_marker_line, right_marker_line, current_left_road_edge, current_right_road_edge
+        )
 
         self.observation_dict["left_marker_distance"] = np.array([left_marker_distance])
         self.observation_dict["right_marker_distance"] = np.array([right_marker_distance])
@@ -303,19 +383,20 @@ class LaneletNetworkObservation(Observation):
     def _get_lane_curvature(self, ego_position: np.array, local_ccosy: CurvilinearCoordinateSystem):
         lane_curvature = LaneletNetworkObservation.get_lane_curvature(ego_position, local_ccosy)
         if np.isnan(lane_curvature):
-            assert len(self.observation_history_dict["lane_curvature"]) > 0, \
-                "Ego vehicle started outside the local coordinate system"
+            assert (
+                len(self.observation_history_dict["lane_curvature"]) > 0
+            ), "Ego vehicle started outside the local coordinate system"
             lane_curvature = self.observation_history_dict["lane_curvature"][-1]
         self.observation_history_dict["lane_curvature"].append(lane_curvature)
         self.observation_dict["lane_curvature"] = np.array([lane_curvature])
 
     def _get_lat_offset(self, ego_state: State, local_ccosy: CurvilinearCoordinateSystem):
-
         lat_offset = LaneletNetworkObservation.get_relative_offset(local_ccosy, ego_state.position)
         if np.isnan(lat_offset):
             # we assume that the ego vehicle starts inside the curvi_cosy
-            assert (len(self.observation_history_dict["lat_offset"]) > 0), \
-                "Ego vehicle started outside the local coordinate system"
+            assert (
+                len(self.observation_history_dict["lat_offset"]) > 0
+            ), "Ego vehicle started outside the local coordinate system"
             lat_offset = self.observation_history_dict["lat_offset"][-1]
 
         self.observation_history_dict["lat_offset"].append(lat_offset)
@@ -351,9 +432,13 @@ class LaneletNetworkObservation(Observation):
         return ego_vehicle_lat_position
 
     @staticmethod
-    def get_distance_to_marker_and_road_edge(ego_vehicle_state: State, left_marker_line: LineString,
-                                             right_marker_line: LineString, left_road_edge: LineString,
-                                             right_road_edge: LineString, ) -> Tuple[float, float, float, float]:
+    def get_distance_to_marker_and_road_edge(
+        ego_vehicle_state: State,
+        left_marker_line: LineString,
+        right_marker_line: LineString,
+        left_road_edge: LineString,
+        right_road_edge: LineString,
+    ) -> Tuple[float, float, float, float]:
         """
         Get the distance to lane markers and the road edge
 
@@ -366,14 +451,18 @@ class LaneletNetworkObservation(Observation):
         """
         ego_vehicle_point = Point(ego_vehicle_state.position[0], ego_vehicle_state.position[1])
 
-        distance_left_marker = LaneletNetworkObservation.get_distance_point_to_linestring(ego_vehicle_point,
-                                                                                          left_marker_line)
-        distance_right_marker = LaneletNetworkObservation.get_distance_point_to_linestring(ego_vehicle_point,
-                                                                                           right_marker_line)
-        distance_left_road_edge = LaneletNetworkObservation.get_distance_point_to_linestring(ego_vehicle_point,
-                                                                                             left_road_edge)
-        distance_right_road_edge = LaneletNetworkObservation.get_distance_point_to_linestring(ego_vehicle_point,
-                                                                                              right_road_edge)
+        distance_left_marker = LaneletNetworkObservation.get_distance_point_to_linestring(
+            ego_vehicle_point, left_marker_line
+        )
+        distance_right_marker = LaneletNetworkObservation.get_distance_point_to_linestring(
+            ego_vehicle_point, right_marker_line
+        )
+        distance_left_road_edge = LaneletNetworkObservation.get_distance_point_to_linestring(
+            ego_vehicle_point, left_road_edge
+        )
+        distance_right_road_edge = LaneletNetworkObservation.get_distance_point_to_linestring(
+            ego_vehicle_point, right_road_edge
+        )
 
         return distance_left_marker, distance_right_marker, distance_left_road_edge, distance_right_road_edge
 

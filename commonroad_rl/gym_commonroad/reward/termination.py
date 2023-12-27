@@ -38,7 +38,7 @@ class Termination:
             "is_off_road": 0,
             "is_time_out": 0,
             "is_friction_violation": 0,
-            "num_friction_violation": self.num_friction_violation
+            "num_friction_violation": self.num_friction_violation,
         }
         termination_reason = None
 

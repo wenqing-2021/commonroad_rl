@@ -31,12 +31,16 @@ LOGGER.addHandler(handler)
 def get_args():
     """Scan arguments"""
     parser = argparse.ArgumentParser(
-        description="Filters out non-routable scenarios",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--pickles", "-i", help="Path to problems", type=str,
-                        default=constants.PATH_PARAMS["pickles"])
-    parser.add_argument("--output", "-o", help="Path to output dir", type=str,
-                        default=os.path.join(constants.PATH_PARAMS["pickles"], "unroutable-problems"))
+        description="Filters out non-routable scenarios", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("--pickles", "-i", help="Path to problems", type=str, default=constants.PATH_PARAMS["pickles"])
+    parser.add_argument(
+        "--output",
+        "-o",
+        help="Path to output dir",
+        type=str,
+        default=os.path.join(constants.PATH_PARAMS["pickles"], "unroutable-problems"),
+    )
     return parser.parse_args()
 
 
@@ -74,7 +78,4 @@ def main(pickles: str, output: str) -> None:
 
 if __name__ == "__main__":
     args = get_args()
-    main(
-        pickles=args.pickles,
-        output=args.output
-    )
+    main(pickles=args.pickles, output=args.output)

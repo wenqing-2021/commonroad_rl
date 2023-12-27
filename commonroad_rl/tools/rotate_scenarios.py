@@ -82,9 +82,7 @@ def get_args() -> Tuple[argparse.ArgumentParser, np.ndarray]:
     ty = np.asarray(args.translations_y)
 
     if not (len(rot) == len(tx) == len(ty)):
-        raise Exception(
-            "length of rotations, translations_x, translations_y must be equal"
-        )
+        raise Exception("length of rotations, translations_x, translations_y must be equal")
     for i, angle in enumerate(rot):
         if angle > 2 * np.pi or angle < 0:
             LOGGER.warning(f"angle {i} is outside [0, {2*np.pi}]: {angle}")
@@ -114,9 +112,7 @@ def main() -> None:
     args, rot_tx_ty = get_args()
 
     # Check arguments
-    assert os.path.isdir(
-        args.problem_dir_in
-    ), f"The problem directory doesn't exist {args.problem_dir_in}"
+    assert os.path.isdir(args.problem_dir_in), f"The problem directory doesn't exist {args.problem_dir_in}"
     os.makedirs(args.problem_dir_out, exist_ok=True)
     xml_scenarios = glob.glob(args.problem_dir_in + "**/*.xml")
 
@@ -134,9 +130,7 @@ def main() -> None:
         )
 
 
-def rotate_scenarios(
-    xml_scenario_paths: List[str], rot_tx_ty: np.ndarray, outdir: str
-) -> None:
+def rotate_scenarios(xml_scenario_paths: List[str], rot_tx_ty: np.ndarray, outdir: str) -> None:
     """
     Run rotation/translation of xmls with imports goal-requirements of scenarios and sets goal-observations in config
 
@@ -147,9 +141,7 @@ def rotate_scenarios(
     :return: None
     """
     try:
-        print(
-            f"start rotating {len(xml_scenario_paths)} sceanrios on {rot_tx_ty.shape[1]} settings"
-        )
+        print(f"start rotating {len(xml_scenario_paths)} sceanrios on {rot_tx_ty.shape[1]} settings")
         for xml_scenario_path in xml_scenario_paths:
             # open scenario
             reader = CommonRoadFileReader(xml_scenario_path)
@@ -219,9 +211,7 @@ def write_rotate_and_translate_scenario(
         f"{scenario.benchmark_id}_{rot_tx_ty_setting[0]}_{rot_tx_ty_setting[1]}_{rot_tx_ty_setting[2]}.xml",
     )
 
-    writer.write_to_file(
-        filename=new_filename, overwrite_existing_file=OverwriteExistingFile.ALWAYS
-    )
+    writer.write_to_file(filename=new_filename, overwrite_existing_file=OverwriteExistingFile.ALWAYS)
 
 
 if __name__ == "__main__":

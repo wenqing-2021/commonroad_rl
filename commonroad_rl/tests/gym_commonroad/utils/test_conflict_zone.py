@@ -8,15 +8,17 @@ from commonroad_rl.tests.common.marker import *
 resource_path = resource_root("test_gym_commonroad")
 
 
-@pytest.mark.parametrize("scenario_id",
-                         [
-                             "DEU_AAH-1_11009_T-1",
-                             "DEU_AAH-1_13008_T-1",
-                             "DEU_AAH-1_100017_T-1",
-                             "DEU_AAH-2_26003_T-1",
-                             "DEU_AAH-3_320011_T-1",
-                             "DEU_AAH-4_2002_T-1"
-                         ])
+@pytest.mark.parametrize(
+    "scenario_id",
+    [
+        "DEU_AAH-1_11009_T-1",
+        "DEU_AAH-1_13008_T-1",
+        "DEU_AAH-1_100017_T-1",
+        "DEU_AAH-2_26003_T-1",
+        "DEU_AAH-3_320011_T-1",
+        "DEU_AAH-4_2002_T-1",
+    ],
+)
 @module_test
 @functional
 def test_conflict_zone_reset(scenario_id):

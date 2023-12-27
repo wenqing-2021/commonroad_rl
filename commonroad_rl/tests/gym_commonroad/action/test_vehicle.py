@@ -1,6 +1,7 @@
 from commonroad_rl.gym_commonroad.action import *
 from commonroad_rl.tests.common.marker import *
 
+
 @pytest.mark.parametrize(
     ("steering_angle", "velocity", "expected_orientation"),
     [
@@ -45,39 +46,39 @@ def test_valid_vehicle_orientation(steering_angle, velocity, expected_orientatio
     ("vehicle_model", "action", "expected_position"),
     [
         (
-                VehicleModel.PM,
-                np.array([2.3, 0.]),
-                np.array([53.75, 0.0]),
+            VehicleModel.PM,
+            np.array([2.3, 0.0]),
+            np.array([53.75, 0.0]),
         ),
         (
-                VehicleModel.PM,
-                np.array([2.3, 2.3]),
-                np.array([53.75, 28.75]),
+            VehicleModel.PM,
+            np.array([2.3, 2.3]),
+            np.array([53.75, 28.75]),
         ),
         (
-                VehicleModel.KS,
-                np.array([0, 2.3]),
-                np.array([53.75, 0.0]),
+            VehicleModel.KS,
+            np.array([0, 2.3]),
+            np.array([53.75, 0.0]),
         ),
         (
-                VehicleModel.KS,
-                np.array([0.04, 2.3]),
-                np.array([23.57605449, 31.40848146]),
+            VehicleModel.KS,
+            np.array([0.04, 2.3]),
+            np.array([23.57605449, 31.40848146]),
         ),
         (
-                VehicleModel.YawRate,
-                np.array([0., 2.3]),
-                np.array([53.75, 0.0]),
+            VehicleModel.YawRate,
+            np.array([0.0, 2.3]),
+            np.array([53.75, 0.0]),
         ),
         (
-                VehicleModel.YawRate,
-                np.array([0.2, 2.3]),
-                np.array([42.98873942, 28.80964147]),
+            VehicleModel.YawRate,
+            np.array([0.2, 2.3]),
+            np.array([42.98873942, 28.80964147]),
         ),
         (
-                VehicleModel.QP,
-                np.array([0.2, 0.]),
-                np.array([30.20833333,  0.]),
+            VehicleModel.QP,
+            np.array([0.2, 0.0]),
+            np.array([30.20833333, 0.0]),
         ),
     ],
 )
@@ -96,20 +97,22 @@ def test_continuous_vehicle(vehicle_model, action, expected_position):
     if vehicle_model == 0:
         initial_state = CustomState(
             **{
-                "position": np.array([0., 0.]),
+                "position": np.array([0.0, 0.0]),
                 "velocity": 5,
                 "velocity_y": 0,
                 "time_step": 0,
-            })
+            }
+        )
     else:
         initial_state = CustomState(
             **{
-                "position": np.array([0., 0.]),
+                "position": np.array([0.0, 0.0]),
                 "steering_angle": 0.0,
                 "orientation": 0.0,
                 "velocity": 5.0,
                 "time_step": 0,
-            })
+            }
+        )
 
     vehicle.reset(initial_state, dt=1)
     steps = 5
@@ -119,36 +122,37 @@ def test_continuous_vehicle(vehicle_model, action, expected_position):
 
     assert np.allclose(position, expected_position)
 
+
 @unit_test
 @nonfunctional
 def test_yaw_rate_vehicle():
     vehicle_dynamics = YawRateDynamics(VehicleType.BMW_320i)
     a_max = vehicle_dynamics.parameters.longitudinal.a_max - 1e-6
-    x0, y0 = 0., 0.
-    v0 = 10.
+    x0, y0 = 0.0, 0.0
+    v0 = 10.0
     theta0 = 0.25 * np.pi
     dt = 0.04
 
-    phi = 0.
-    x = [x0, y0, 0., v0, theta0]
+    phi = 0.0
+    x = [x0, y0, 0.0, v0, theta0]
     while True:
-        u = [a_max * np.sin(x[4] + phi) / x[3], -a_max * np.cos(x[4] + phi)] # [yaw rate, longitudinal acceleration]
+        u = [a_max * np.sin(x[4] + phi) / x[3], -a_max * np.cos(x[4] + phi)]  # [yaw rate, longitudinal acceleration]
         x = vehicle_dynamics.forward_simulation(x, u, dt, throw=True)
-        if x[3] * np.cos(x[4]) <= 0.:
+        if x[3] * np.cos(x[4]) <= 0.0:
             break
 
     # max turning
-    x = [x0, y0, 0., v0, theta0]
+    x = [x0, y0, 0.0, v0, theta0]
     while True:
-        u = [0., -a_max]
+        u = [0.0, -a_max]
         x = vehicle_dynamics.forward_simulation(x, u, dt, throw=True)
-        if x[3] * np.cos(x[4]) <= 0.:
+        if x[3] * np.cos(x[4]) <= 0.0:
             break
 
     # max deceleration
-    x = [x0, y0, 0., v0, theta0]
+    x = [x0, y0, 0.0, v0, theta0]
     while True:
-        u = [a_max/x[3], 0.]
+        u = [a_max / x[3], 0.0]
         x = vehicle_dynamics.forward_simulation(x, u, dt, throw=True)
-        if x[3] * np.cos(x[4]) <= 0.:
+        if x[3] * np.cos(x[4]) <= 0.0:
             break

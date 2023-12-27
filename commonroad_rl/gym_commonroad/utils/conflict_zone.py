@@ -17,10 +17,15 @@ from commonroad.scenario.lanelet import Lanelet
 from commonroad.geometry.shape import Polygon as Polygon
 
 import commonroad_dc.pycrcc as pycrcc
+
 # from commonroad_dc.geometry.geometry import CurvilinearCoordinateSystem
 from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
-from commonroad_dc.geometry.util import compute_curvature_from_polyline, compute_orientation_from_polyline, \
-    compute_pathlength_from_polyline, resample_polyline
+from commonroad_dc.geometry.util import (
+    compute_curvature_from_polyline,
+    compute_orientation_from_polyline,
+    compute_pathlength_from_polyline,
+    resample_polyline,
+)
 from commonroad_dc.collision.collision_detection.pycrcc_collision_dispatch import create_collision_object
 from commonroad_rl.gym_commonroad.constants import PATH_PARAMS
 from commonroad_rl.gym_commonroad.utils.scenario import angle_difference, approx_orientation_vector
@@ -45,7 +50,7 @@ class ConflictZone(ABC):
     3. unsafe lane pair pattern (groups):
     """
 
-    def __init__(self, reaching_time_prediction: bool =True):
+    def __init__(self, reaching_time_prediction: bool = True):
         """
         initializes basic variables of conflict zones
 
@@ -72,9 +77,9 @@ class ConflictZone(ABC):
         with open(self.config_file, "r") as root_path:
             self.config = yaml.safe_load(root_path)
         # TODO: now hardcoded - if necessary load from config file or vehicle parameter
-        #self.maximal_velocity = self.config['occupany_predictor']['maximal_velocity']
+        # self.maximal_velocity = self.config['occupany_predictor']['maximal_velocity']
         self.maximal_velocity = 20.0
-        self.weight_coefficient = 8 #TODO: necessary to initialize here?
+        self.weight_coefficient = 8  # TODO: necessary to initialize here?
 
     def reset(self, scenario: Scenario):
         """
@@ -83,15 +88,15 @@ class ConflictZone(ABC):
         :param scenario: base scenario used in planning
         """
         self.scenario = scenario
-        identifer = '_'.join(scenario.scenario_id.__str__().split('_')[0:2])
+        identifer = "_".join(scenario.scenario_id.__str__().split("_")[0:2])
 
         if self.cache_conflict_zone[identifer] is not None:
-            self.lane_list = self.cache_conflict_zone[identifer]['lane_list']
-            self.intersection_conflict_zone = self.cache_conflict_zone[identifer]['intersection_conflict_zone']
-            self.lane_conflict_information = self.cache_conflict_zone[identifer]['conflict_information']
-            self.unsafe_lane_pair_pattern = self.cache_conflict_zone[identifer]['unsafe_pattern']
-            self.lane_velocity_upper_bound = self.cache_conflict_zone[identifer]['velocity_bound']
-            self.lane_min_time_interval = self.cache_conflict_zone[identifer]['time_interval']
+            self.lane_list = self.cache_conflict_zone[identifer]["lane_list"]
+            self.intersection_conflict_zone = self.cache_conflict_zone[identifer]["intersection_conflict_zone"]
+            self.lane_conflict_information = self.cache_conflict_zone[identifer]["conflict_information"]
+            self.unsafe_lane_pair_pattern = self.cache_conflict_zone[identifer]["unsafe_pattern"]
+            self.lane_velocity_upper_bound = self.cache_conflict_zone[identifer]["velocity_bound"]
+            self.lane_min_time_interval = self.cache_conflict_zone[identifer]["time_interval"]
         else:
             self.lane_list = self._create_lanes_for_lanelet_network()
             self.intersection_conflict_zone = self._conflict_region_generation(threshold_area=30)
@@ -101,12 +106,12 @@ class ConflictZone(ABC):
             self.lane_min_time_interval = self.get_minimal_time_to_drive()
             # save in cache
             temp_dict = dict()
-            temp_dict['lane_list'] = self.lane_list
-            temp_dict['intersection_conflict_zone'] = self.intersection_conflict_zone
-            temp_dict['conflict_information'] = self.lane_conflict_information
-            temp_dict['unsafe_pattern'] = self.unsafe_lane_pair_pattern
-            temp_dict['velocity_bound'] = self.lane_velocity_upper_bound
-            temp_dict['time_interval'] = self.lane_min_time_interval
+            temp_dict["lane_list"] = self.lane_list
+            temp_dict["intersection_conflict_zone"] = self.intersection_conflict_zone
+            temp_dict["conflict_information"] = self.lane_conflict_information
+            temp_dict["unsafe_pattern"] = self.unsafe_lane_pair_pattern
+            temp_dict["velocity_bound"] = self.lane_velocity_upper_bound
+            temp_dict["time_interval"] = self.lane_min_time_interval
             self.cache_conflict_zone[identifer] = temp_dict
 
         # generate collsion model for intersection conflict zone
@@ -161,18 +166,20 @@ class ConflictZone(ABC):
                                 while target_temp.predecessor != compared_temp.predecessor:
                                     # assume that if has different predecessors, only have one
                                     target_temp = self.scenario.lanelet_network.find_lanelet_by_id(
-                                        target_temp.predecessor[0])
+                                        target_temp.predecessor[0]
+                                    )
                                     compared_temp = self.scenario.lanelet_network.find_lanelet_by_id(
-                                        compared_temp.predecessor[0])
+                                        compared_temp.predecessor[0]
+                                    )
                                     if len(target_temp.predecessor) == 0 or len(compared_temp.predecessor) == 0:
                                         break
                                     elif target_temp.predecessor == compared_temp.predecessor:
                                         from_same_lane = True
                                         break
 
-                            if (not from_same_lane
-                                    and ((target_id, compared_id) not in show_list
-                                         and (compared_id, target_id) not in show_list)):
+                            if not from_same_lane and (
+                                (target_id, compared_id) not in show_list and (compared_id, target_id) not in show_list
+                            ):
                                 show_list.append((target_id, compared_id))
                                 inter = polygon1.intersection(polygon2)
                                 conflict_regions.append(inter)
@@ -223,8 +230,9 @@ class ConflictZone(ABC):
                     before_critical_point = line_segments.coords[0]
                     after_critical_point = line_segments.coords[-1]
                     try:
-                        before_s, _ = lane[3].convert_to_curvilinear_coords(before_critical_point[0],
-                                                                            before_critical_point[1])
+                        before_s, _ = lane[3].convert_to_curvilinear_coords(
+                            before_critical_point[0], before_critical_point[1]
+                        )
                     except ValueError:
                         # project the results to the center line
                         idx = np.argmin(np.linalg.norm(lane[3].reference() - before_critical_point, axis=1))
@@ -232,8 +240,9 @@ class ConflictZone(ABC):
                         before_s, _ = lane[3].convert_to_curvilinear_coords(pos[0], pos[1])
 
                     try:
-                        end_s, _ = lane[3].convert_to_curvilinear_coords(after_critical_point[0],
-                                                                         after_critical_point[1])
+                        end_s, _ = lane[3].convert_to_curvilinear_coords(
+                            after_critical_point[0], after_critical_point[1]
+                        )
                     except ValueError:
                         # project the results to the center line
                         idx = np.argmin(np.linalg.norm(lane[3].reference() - after_critical_point, axis=1))
@@ -248,7 +257,11 @@ class ConflictZone(ABC):
                     lane_critical_points.append(critical_points_pair)
 
             conflict_information_dict[lane_id] = (
-            lane, lane_conflict_regions, conflict_collision_models, lane_critical_points)
+                lane,
+                lane_conflict_regions,
+                conflict_collision_models,
+                lane_critical_points,
+            )
 
         return conflict_information_dict
 
@@ -440,9 +453,12 @@ class ConflictZone(ABC):
                             if self.reaching_time_based_prediction:
                                 # method 1: constant-velocity prediction
                                 if safe_delta_distance > self.delta_conflict_region_width:
-                                    reach_time = self.get_minimum_time_to_conflict_region(lane_id, state, obs_s,
-                                                                                          obs_critical_s)
-                                    predicted_reach_time = reach_time if reach_time < predicted_reach_time else predicted_reach_time
+                                    reach_time = self.get_minimum_time_to_conflict_region(
+                                        lane_id, state, obs_s, obs_critical_s
+                                    )
+                                    predicted_reach_time = (
+                                        reach_time if reach_time < predicted_reach_time else predicted_reach_time
+                                    )
                                 elif abs(safe_delta_distance) <= self.delta_conflict_region_width:
                                     unsafe_intersection = True
                             else:
@@ -451,15 +467,17 @@ class ConflictZone(ABC):
                                     v_max = np.sqrt(2 * (obs_critical_s - obs_s) * obs_a_stop)
                                     if v_max <= state.velocity:
                                         v_0 = state.velocity
-                                        reach_time = (v_0 - np.sqrt(v_0 ** 2 - v_max ** 2)) / obs_a_stop
-                                        predicted_reach_time = reach_time if reach_time < predicted_reach_time else predicted_reach_time
+                                        reach_time = (v_0 - np.sqrt(v_0**2 - v_max**2)) / obs_a_stop
+                                        predicted_reach_time = (
+                                            reach_time if reach_time < predicted_reach_time else predicted_reach_time
+                                        )
                                 elif abs(safe_delta_distance) <= self.delta_conflict_region_width:
                                     unsafe_intersection = True
 
                 # print(unsafe_intersection, predicted_reach_time)
-                return self._generate_conflict_collision_model(conflict_information[2][0],
-                                                               unsafe_intersection, time_step, predicted_reach_time,
-                                                               plan_horizon)
+                return self._generate_conflict_collision_model(
+                    conflict_information[2][0], unsafe_intersection, time_step, predicted_reach_time, plan_horizon
+                )
             else:
                 # ego vehicle has passed the intersection
                 return pycrcc.ShapeGroup()
@@ -503,9 +521,11 @@ class ConflictZone(ABC):
             if lane_information[3].ref_pos()[s_idx] > obs_s:
                 s_idx -= 1
             s_lambda = (obs_s - lane_information[3].ref_pos()[s_idx]) / (
-                    lane_information[3].ref_pos()[s_idx + 1] - lane_information[3].ref_pos()[s_idx])
-            ego_curvature = (s_lambda) * lane_information[3].ref_curv()[s_idx + 1] + (1 - s_lambda) * \
-                            lane_information[3].ref_curv()[s_idx]
+                lane_information[3].ref_pos()[s_idx + 1] - lane_information[3].ref_pos()[s_idx]
+            )
+            ego_curvature = (s_lambda) * lane_information[3].ref_curv()[s_idx + 1] + (1 - s_lambda) * lane_information[
+                3
+            ].ref_curv()[s_idx]
             v_max_limit = min(self.maximal_velocity, np.sqrt(maximal_lateral_acceleration / np.abs(ego_curvature)))
 
             critical_point_near, critical_point_far = conflict_information[3][0]
@@ -529,9 +549,9 @@ class ConflictZone(ABC):
         # generate collision object
         return create_collision_object(Polygon(vertices))
 
-    def _generate_conflict_collision_model(self, polygon_collision_object, unsafe_intersection, time_step, ttr,
-                                           plan_horizon):
-
+    def _generate_conflict_collision_model(
+        self, polygon_collision_object, unsafe_intersection, time_step, ttr, plan_horizon
+    ):
         """
         generates time-variant collision model for conflict zones
         :param polygon_collision_object: collision object (shape) of lane-based conflict zones
@@ -572,7 +592,7 @@ class ConflictZone(ABC):
         self.region_collision_model = create_collision_object(Polygon(vertices))
         self.region_velocity_bound = [0, 0]
 
-    def draw_conflict_region(self, conflict_region=None, linewidth=1, color='chocolate'):
+    def draw_conflict_region(self, conflict_region=None, linewidth=1, color="chocolate"):
         """
         draws the generated conflict region in the render function
         """
@@ -646,7 +666,7 @@ class ConflictZone(ABC):
                 cosy = lane[3]
                 break
         if cosy is None:
-            print('ERROR:ConflictZone: coordinate system for calculating intersection ego observation not found')
+            print("ERROR:ConflictZone: coordinate system for calculating intersection ego observation not found")
             raise ValueError
         try:
             ego_s, _ = cosy.convert_to_curvilinear_coords(position[0], position[1])
@@ -655,7 +675,7 @@ class ConflictZone(ABC):
             idx = np.argmin(np.linalg.norm(cosy.reference() - position, axis=1))
             pos = cosy.reference()[idx]
             ego_s, _ = cosy.convert_to_curvilinear_coords(pos[0], pos[1])
-            
+
         delta_s_near, delta_s_far = critical_point_near - ego_s, critical_point_far - ego_s
 
         return delta_s_near, delta_s_far
@@ -704,7 +724,6 @@ class ConflictZone(ABC):
         return min_time_interval
 
     def get_minimum_time_to_conflict_region(self, lane_id, state, obs_s, obs_critical_s):
-
         """
         gets the reaching time for constant-velocity-based approach
 
@@ -761,11 +780,13 @@ class ConflictZone(ABC):
         :return: heading angle in frenet coordinate system relative to lanelet center vertices between -pi and pi
         """
         # TODO: This function is a duplicate with the function in EgoObservation
-        lanelet_angle = self._get_orientation_of_polyline(ego_vehicle_state.position,
-                                                                    ego_vehicle_lanelet.center_vertices)
+        lanelet_angle = self._get_orientation_of_polyline(
+            ego_vehicle_state.position, ego_vehicle_lanelet.center_vertices
+        )
 
-        return angle_difference(approx_orientation_vector(lanelet_angle),
-                                approx_orientation_vector(ego_vehicle_state.orientation))
+        return angle_difference(
+            approx_orientation_vector(lanelet_angle), approx_orientation_vector(ego_vehicle_state.orientation)
+        )
 
     @staticmethod
     def _get_orientation_of_polyline(position: np.array, polyline: np.array) -> float:
@@ -782,12 +803,14 @@ class ConflictZone(ABC):
 
         idx = spatial.KDTree(polyline).query(position)[1]
         if idx < position.shape[0] - 1:
-            orientation = np.arccos((polyline[idx + 1, 0] - polyline[idx, 0]) /
-                                    np.linalg.norm(polyline[idx + 1] - polyline[idx]))
+            orientation = np.arccos(
+                (polyline[idx + 1, 0] - polyline[idx, 0]) / np.linalg.norm(polyline[idx + 1] - polyline[idx])
+            )
             sign = np.sign(polyline[idx + 1, 1] - polyline[idx, 1])
         else:
-            orientation = np.arccos((polyline[idx, 0] - polyline[idx - 1, 0]) /
-                                    np.linalg.norm(polyline[idx] - polyline[idx - 1]))
+            orientation = np.arccos(
+                (polyline[idx, 0] - polyline[idx - 1, 0]) / np.linalg.norm(polyline[idx] - polyline[idx - 1])
+            )
             sign = np.sign(polyline[idx, 1] - polyline[idx - 1, 1])
         if sign >= 0:
             orientation = np.abs(orientation)
@@ -810,13 +833,15 @@ class ConflictZone(ABC):
                     if not self.scenario.lanelet_network.find_lanelet_by_id(predecessor).predecessor:
                         (lane_lanelets, sub_lanelets_ids) = Lanelet.all_lanelets_by_merging_successors_from_lanelet(
                             self.scenario.lanelet_network.find_lanelet_by_id(predecessor),
-                            self.scenario.lanelet_network, 1000)
+                            self.scenario.lanelet_network,
+                            1000,
+                        )
                         # in InD dataset, there may be multiple lanelets to go
                         for merged_lane_lanelet, sub_lanelet_ids in zip(lane_lanelets, sub_lanelets_ids):
-                            identifer = '_'.join(self.scenario.scenario_id.__str__().split('_')[0:2])
+                            identifer = "_".join(self.scenario.scenario_id.__str__().split("_")[0:2])
                             # fix imperfect design in the commonroad model
                             # planning problem: DEU_AAH-1_80029_T-1
-                            if identifer == 'DEU_AAH-1':
+                            if identifer == "DEU_AAH-1":
                                 self.weight_coefficient = 12
                                 if 153 not in sub_lanelet_ids:
                                     if sub_lanelet_ids[0] == 112 and sub_lanelet_ids[-1] == 102:
@@ -824,13 +849,14 @@ class ConflictZone(ABC):
                                     else:
                                         smooth_factor = 1.5
                                     reference_path = extrapolate_resample_polyline(merged_lane_lanelet.center_vertices)
-                                    reference_path = self._smoothing_reference_path(reference_path,
-                                                                                    smooth_factor=smooth_factor)
+                                    reference_path = self._smoothing_reference_path(
+                                        reference_path, smooth_factor=smooth_factor
+                                    )
                                     # reference_path = merged_lane_lanelet.center_vertices
                                     # ref_cossy = CurvilinearCoordinateSystem(reference_path)
                                     ref_cossy = CoordinateSystem(reference_path)
                                     lanes.append([sub_lanelet_ids, merged_lane_lanelet, reference_path, ref_cossy])
-                            elif identifer == 'DEU_AAH-2':
+                            elif identifer == "DEU_AAH-2":
                                 self.weight_coefficient = 8
                                 reference_path = extrapolate_resample_polyline(merged_lane_lanelet.center_vertices)
                                 reference_path = self._smoothing_reference_path(reference_path, smooth_factor=1.0)
@@ -838,17 +864,19 @@ class ConflictZone(ABC):
                                 # ref_cossy = CurvilinearCoordinateSystem(reference_path)
                                 ref_cossy = CoordinateSystem(reference_path)
                                 lanes.append([sub_lanelet_ids, merged_lane_lanelet, reference_path, ref_cossy])
-                            elif identifer == 'DEU_AAH-3':
+                            elif identifer == "DEU_AAH-3":
                                 self.weight_coefficient = 8
                                 # remove unuseful road
                                 if sub_lanelet_ids[0] != 149:
                                     reference_path = extrapolate_resample_polyline(merged_lane_lanelet.center_vertices)
                                     if sub_lanelet_ids[0] == 114 and sub_lanelet_ids[-1] in [154, 146]:
-                                        reference_path = self._smoothing_reference_path(reference_path,
-                                                                                        smooth_factor=0.0)
+                                        reference_path = self._smoothing_reference_path(
+                                            reference_path, smooth_factor=0.0
+                                        )
                                     else:
-                                        reference_path = self._smoothing_reference_path(reference_path,
-                                                                                        smooth_factor=0.7)
+                                        reference_path = self._smoothing_reference_path(
+                                            reference_path, smooth_factor=0.7
+                                        )
                                     # reference_path = merged_lane_lanelet.center_vertices
                                     # ref_cossy = CurvilinearCoordinateSystem(reference_path)
                                     ref_cossy = CoordinateSystem(reference_path)
@@ -884,9 +912,7 @@ class ConflictZone(ABC):
         transposed_reference_path = reference_path.T
         # how to generate index okay
         okay = np.where(
-            np.abs(np.diff(transposed_reference_path[0]))
-            + np.abs(np.diff(transposed_reference_path[1]))
-            > 0
+            np.abs(np.diff(transposed_reference_path[0])) + np.abs(np.diff(transposed_reference_path[1])) > 0
         )
         xp = np.r_[transposed_reference_path[0][okay], transposed_reference_path[0][-1]]
         yp = np.r_[transposed_reference_path[1][okay], transposed_reference_path[1][-1]]
@@ -904,7 +930,7 @@ class ConflictZone(ABC):
         return np.array([x_new, y_new]).transpose()
 
 
-class CoordinateSystem():
+class CoordinateSystem:
     # TODO: check if this class is necessary or can be eliminated
     def __init__(self, reference: np.ndarray):
         self._reference = reference
@@ -918,7 +944,7 @@ class CoordinateSystem():
     def reference(self) -> np.ndarray:
         return self._reference
 
-    def ccosy(self) -> CurvilinearCoordinateSystem: #TrapezoidCoordinateSystem:
+    def ccosy(self) -> CurvilinearCoordinateSystem:  # TrapezoidCoordinateSystem:
         return self._ccosy
 
     def ref_pos(self) -> np.ndarray:
@@ -945,9 +971,7 @@ class CoordinateSystem():
         return self._ccosy.convert_to_curvilinear_coords(x, y)
 
 
-def extrapolate_resample_polyline(
-    polyline: np.ndarray, step: float = 2.0
-) -> np.ndarray:
+def extrapolate_resample_polyline(polyline: np.ndarray, step: float = 2.0) -> np.ndarray:
     """
     Current ccosy (https://gitlab.lrz.de/cps/commonroad-curvilinear-coordinate-system/-/tree/development) creates
     wrong projection domain if polyline has large distance between waypoints --> resampling;

@@ -53,8 +53,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="Evaluates PPO2 trained model with SUMO interactive scenarios",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="Evaluates PPO2 trained model with SUMO interactive scenarios",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("--env_id", type=str, default="commonroad-v1", help="environment ID")
     parser.add_argument("--algo", type=str, default="ppo2")
     parser.add_argument("--num_processes", "-n", type=int, default=1)
@@ -70,11 +72,14 @@ def get_parser():
     return parser
 
 
-def simulate_scenario(conf: DefaultConfig,
-                      scenario_wrapper: ScenarioWrapper,
-                      planning_problem_set: PlanningProblemSet = None,
-                      model=None,
-                      env=None, render=False) -> Tuple[Scenario, Dict[int, EgoVehicle], Dict]:
+def simulate_scenario(
+    conf: DefaultConfig,
+    scenario_wrapper: ScenarioWrapper,
+    planning_problem_set: PlanningProblemSet = None,
+    model=None,
+    env=None,
+    render=False,
+) -> Tuple[Scenario, Dict[int, EgoVehicle], Dict]:
     """
     Simulates an interactive scenario with specified mode
 
@@ -113,37 +118,34 @@ def simulate_scenario(conf: DefaultConfig,
                 planning_initital_state = copy.deepcopy(ego_vehicle.current_state)
                 # TODO: check if slip_angle matters
                 planning_initital_state.time_step = 0
-                planning_initital_state.slip_angle = 0.
+                planning_initital_state.slip_angle = 0.0
 
                 observations = env.reset(
                     scenario=current_scenario,
                     planning_problem=PlanningProblem(
                         planning_problem_id=planning_problem.planning_problem_id,
                         initial_state=planning_initital_state,
-                        goal_region=planning_problem.goal
-                    )
+                        goal_region=planning_problem.goal,
+                    ),
                 )
                 # fix is_time_out here since the current_step inside CommonRoadEnv is incorrect
                 is_goal_reached = cr_env.observation_dict["is_goal_reached"][0]
                 is_time_out = step >= cr_env.observation_collector.episode_length and not is_goal_reached
                 cr_env.observation_dict["is_time_out"] = np.array([is_time_out])
                 done, reason, termination_info = cr_env.termination.is_terminated(
-                    cr_env.observation_dict,
-                    cr_env.ego_action
+                    cr_env.observation_dict, cr_env.ego_action
                 )
 
                 infos.update(termination_info)
 
                 # update infos (filter out invalid collision)
-                if isinstance(env.venv.envs[0].env, CBFWrapper) and \
-                        (termination_info["is_collision"] == 1 or termination_info["is_off_road"] == 1):
+                if isinstance(env.venv.envs[0].env, CBFWrapper) and (
+                    termination_info["is_collision"] == 1 or termination_info["is_off_road"] == 1
+                ):
                     # rerun simulation to filter out invalid collision and offroad
                     # (should reproduce the same result since reproducable)
                     simulated_scenario = sumo_sim.commonroad_scenarios_all_time_steps()
-                    obs = env.reset(
-                        scenario=simulated_scenario,
-                        planning_problem=planning_problem
-                    )
+                    obs = env.reset(scenario=simulated_scenario, planning_problem=planning_problem)
                     done = False
                     while not done:
                         action = model.predict(obs, deterministic=True)
@@ -154,11 +156,11 @@ def simulate_scenario(conf: DefaultConfig,
                     env.render(mode=step + 1)
 
                 if done:
-                    return infos # terminated by collision
+                    return infos  # terminated by collision
 
                 observation_keys = []
                 for key, value in cr_env.observation_dict.items():
-                    observation_keys.extend([key]*value.size)
+                    observation_keys.extend([key] * value.size)
 
                 obs_distance_goal_long_advance_idx = observation_keys.index("distance_goal_long_advance")
                 obs_distance_goal_lat_advance_idx = observation_keys.index("distance_goal_lat_advance")
@@ -168,12 +170,16 @@ def simulate_scenario(conf: DefaultConfig,
                 if step > 0:
                     # fix distance_goal_long_advance
                     distance_goal_long_advance = abs(last_distance_goal_long) - abs(
-                        cr_env.observation_dict["distance_goal_long"])
+                        cr_env.observation_dict["distance_goal_long"]
+                    )
                     distance_goal_lat_advance = abs(last_distance_goal_lat) - abs(
-                        cr_env.observation_dict["distance_goal_lat"])
+                        cr_env.observation_dict["distance_goal_lat"]
+                    )
 
                     remaining_steps = cr_env.observation_dict["remaining_steps"] - step
-                    distance_goal_time = np.array([GoalObservation._get_goal_time_distance(step, planning_problem.goal)])
+                    distance_goal_time = np.array(
+                        [GoalObservation._get_goal_time_distance(step, planning_problem.goal)]
+                    )
 
                     observations[0][obs_distance_goal_long_advance_idx] = distance_goal_long_advance
                     observations[0][obs_distance_goal_lat_advance_idx] = distance_goal_lat_advance
@@ -182,7 +188,12 @@ def simulate_scenario(conf: DefaultConfig,
 
                     # normalize
                     tmp_normalized_obs = env.normalize_obs(observations)
-                    for idx in [obs_distance_goal_long_advance_idx, obs_distance_goal_lat_advance_idx, obs_remaining_steps_idx, obs_distance_goal_time_idx]:
+                    for idx in [
+                        obs_distance_goal_long_advance_idx,
+                        obs_distance_goal_lat_advance_idx,
+                        obs_remaining_steps_idx,
+                        obs_distance_goal_time_idx,
+                    ]:
                         observations[0][idx] = tmp_normalized_obs[0][idx]
 
                 assert cr_env.scenario is current_scenario
@@ -194,7 +205,7 @@ def simulate_scenario(conf: DefaultConfig,
                 infos = info[0]
 
                 if done:
-                    return infos # terminated by other reasons (offroad, timeout, goal reached etc)
+                    return infos  # terminated by other reasons (offroad, timeout, goal reached etc)
 
                 # get ego state
                 next_state = cr_env.ego_action.vehicle.state
@@ -217,18 +228,16 @@ def simulate_scenario(conf: DefaultConfig,
     # stop the simulation
     sumo_sim.stop()
 
-    ego_vehicles = {list(planning_problem_set.planning_problem_dict.keys())[0]:
-                        ego_v for _, ego_v in sumo_sim.ego_vehicles.items()}
+    ego_vehicles = {
+        list(planning_problem_set.planning_problem_dict.keys())[0]: ego_v for _, ego_v in sumo_sim.ego_vehicles.items()
+    }
 
     return simulated_scenario, ego_vehicles, info
 
 
-def simulate_with_planner(interactive_scenario_path: str,
-                          create_ego_obstacle: bool = False,
-                          model=None,
-                          env=None,
-                          render=False) \
-        -> Tuple[Scenario, PlanningProblemSet, Dict[int, EgoVehicle]]:
+def simulate_with_planner(
+    interactive_scenario_path: str, create_ego_obstacle: bool = False, model=None, env=None, render=False
+) -> Tuple[Scenario, PlanningProblemSet, Dict[int, EgoVehicle]]:
     """
     Simulates an interactive scenario with a plugged in motion planner
 
@@ -248,12 +257,7 @@ def simulate_with_planner(interactive_scenario_path: str,
     scenario_wrapper.initial_scenario = scenario
 
     scenario_with_planner, ego_vehicles, info = simulate_scenario(
-        conf,
-        scenario_wrapper,
-        planning_problem_set=planning_problem_set,
-        model=model,
-        env=env,
-        render=render
+        conf, scenario_wrapper, planning_problem_set=planning_problem_set, model=model, env=env, render=render
     )
 
     scenario_with_planner.scenario_id = scenario.scenario_id
@@ -283,16 +287,25 @@ def simulate_batch(i, sumo_files, viz_path, evaluation_path, args):
         args.logging_mode.value,
         play=False,
         test_env=True,
-        cache_navigators=True, # SUMO scenarios have to cache navigators since reset is called for each step
-        action_configs={"continuous_collision_checking": False} # SUMO scenario don't support continuous collision check
+        cache_navigators=True,  # SUMO scenarios have to cache navigators since reset is called for each step
+        action_configs={
+            "continuous_collision_checking": False
+        },  # SUMO scenario don't support continuous collision check
     )
     model, env = load_model_and_vecnormalize(args.model_path, args.algo, normalize, env)
 
     fd_result = open(os.path.join(evaluation_path, f"{i}_results.csv"), "w")
     csv_writer = csv.writer(fd_result)
 
-    num_valid_collisions, num_collisions, num_valid_off_road, num_offroad, \
-    num_goal_reaching, num_timeout, total_scenarios = 0, 0, 0, 0, 0, 0, 0
+    (
+        num_valid_collisions,
+        num_collisions,
+        num_valid_off_road,
+        num_offroad,
+        num_goal_reaching,
+        num_timeout,
+        total_scenarios,
+    ) = (0, 0, 0, 0, 0, 0, 0)
 
     for i, sumo_fn in enumerate(sumo_files):
         # if os.getlogin() == "wangx":
@@ -344,8 +357,15 @@ def simulate_batch(i, sumo_files, viz_path, evaluation_path, args):
 
     fd_result.close()
 
-    return num_valid_collisions, num_collisions, num_valid_off_road, num_offroad, \
-           num_goal_reaching, num_timeout, total_scenarios
+    return (
+        num_valid_collisions,
+        num_collisions,
+        num_valid_off_road,
+        num_offroad,
+        num_goal_reaching,
+        num_timeout,
+        total_scenarios,
+    )
 
 
 def main():
@@ -377,9 +397,15 @@ def main():
 
     if args.num_processes == 1:
         t1 = time.time()
-        total_num_valid_collisions, total_num_collisions, total_num_valid_off_road, total_num_offroad, \
-        total_num_goal_reaching, total_num_timeout, total_scenarios = \
-            simulate_batch(0, sumo_paths, args.viz_path, evaluation_path, args)
+        (
+            total_num_valid_collisions,
+            total_num_collisions,
+            total_num_valid_off_road,
+            total_num_offroad,
+            total_num_goal_reaching,
+            total_num_timeout,
+            total_scenarios,
+        ) = simulate_batch(0, sumo_paths, args.viz_path, evaluation_path, args)
         LOGGER.info(f"Elapsed time for simulating {len(sumo_paths)} scenarios: {time.time() - t1}s")
     else:
         num_files_per_process = len(sumo_paths) // args.num_processes
@@ -389,19 +415,34 @@ def main():
                 [
                     (
                         i,
-                        sumo_paths[i * num_files_per_process: (i + 1) * num_files_per_process],
+                        sumo_paths[i * num_files_per_process : (i + 1) * num_files_per_process],
                         args.viz_path,
                         evaluation_path,
-                        args
+                        args,
                     )
                     for i in range(args.num_processes)
-                ])
+                ],
+            )
 
-        total_num_valid_collisions, total_num_collisions, total_num_valid_off_road, total_num_offroad, \
-        total_num_goal_reaching, total_num_timeout, total_scenarios = 0, 0, 0, 0, 0, 0, 0
+        (
+            total_num_valid_collisions,
+            total_num_collisions,
+            total_num_valid_off_road,
+            total_num_offroad,
+            total_num_goal_reaching,
+            total_num_timeout,
+            total_scenarios,
+        ) = (0, 0, 0, 0, 0, 0, 0)
         for res in results:
-            num_valid_collisions, num_collisions, num_valid_off_road, num_offroad, \
-            num_goal_reaching, num_timeout, num_scenarios = res
+            (
+                num_valid_collisions,
+                num_collisions,
+                num_valid_off_road,
+                num_offroad,
+                num_goal_reaching,
+                num_timeout,
+                num_scenarios,
+            ) = res
             total_num_valid_collisions += num_valid_collisions
             total_num_valid_off_road += num_valid_off_road
             total_num_collisions += num_collisions
@@ -411,30 +452,33 @@ def main():
             total_scenarios += num_scenarios
 
     # save evaluation results
-    with open(os.path.join(evaluation_path, "results.csv"), 'w') as fd_result:
+    with open(os.path.join(evaluation_path, "results.csv"), "w") as fd_result:
         fd_result.write("benchmark_id, time_steps, termination_reason\n")
         for i in range(args.num_processes):
             path = os.path.join(evaluation_path, f"{i}_results.csv")
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 fd_result.write(f.read())
             os.remove(path)
 
     with open(os.path.join(evaluation_path, "overview.yml"), "w") as f:
-        yaml.dump({
-            "total_scenarios": total_scenarios,
-            "num_valid_collisions": total_num_valid_collisions,
-            "num_collisions": total_num_collisions,
-            "num_timeout": total_num_timeout,
-            "num_valid_off_road": total_num_valid_off_road,
-            "num_off_road": total_num_offroad,
-            "num_goal_reached": total_num_goal_reaching,
-            "percentage_goal_reached": 100.0 * total_num_goal_reaching / total_scenarios,
-            "percentage_offroad": 100.0 * total_num_offroad / total_scenarios,
-            "percentage_collisions": 100.0 * total_num_collisions / total_scenarios,
-            "percentage_valid_off_road": 100.0 * total_num_valid_off_road / total_scenarios,
-            "percentage_valid_collisions": 100.0 * total_num_valid_collisions / total_scenarios,
-            "percentage_timeout": 100.0 * total_num_timeout / total_scenarios
-        }, f)
+        yaml.dump(
+            {
+                "total_scenarios": total_scenarios,
+                "num_valid_collisions": total_num_valid_collisions,
+                "num_collisions": total_num_collisions,
+                "num_timeout": total_num_timeout,
+                "num_valid_off_road": total_num_valid_off_road,
+                "num_off_road": total_num_offroad,
+                "num_goal_reached": total_num_goal_reaching,
+                "percentage_goal_reached": 100.0 * total_num_goal_reaching / total_scenarios,
+                "percentage_offroad": 100.0 * total_num_offroad / total_scenarios,
+                "percentage_collisions": 100.0 * total_num_collisions / total_scenarios,
+                "percentage_valid_off_road": 100.0 * total_num_valid_off_road / total_scenarios,
+                "percentage_valid_collisions": 100.0 * total_num_valid_collisions / total_scenarios,
+                "percentage_timeout": 100.0 * total_num_timeout / total_scenarios,
+            },
+            f,
+        )
 
     print(f"Elapsed time for {len(sumo_paths)} scenarios: {time.time()-t1}s")
 

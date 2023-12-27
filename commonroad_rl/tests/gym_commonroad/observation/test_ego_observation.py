@@ -11,18 +11,19 @@ from commonroad_rl.tests.common.marker import *
 def construct_ego_observation(vehicle_model):
     # Ego-related observation settings
     return EgoObservation(
-        configs={"ego_configs":
-                     {"observe_v_ego": True,
-                      "observe_a_ego": True,
-                      "observe_relative_heading": True,
-                      "observe_steering_angle": True,
-                      "observe_global_turn_rate": True,
-                      "observe_remaining_steps": True,
-                      "observe_is_friction_violation": True},
-                 "vehicle_params": {
-                     "vehicle_type": 2,
-                     "vehicle_model": vehicle_model
-                 }})
+        configs={
+            "ego_configs": {
+                "observe_v_ego": True,
+                "observe_a_ego": True,
+                "observe_relative_heading": True,
+                "observe_steering_angle": True,
+                "observe_global_turn_rate": True,
+                "observe_remaining_steps": True,
+                "observe_is_friction_violation": True,
+            },
+            "vehicle_params": {"vehicle_type": 2, "vehicle_model": vehicle_model},
+        }
+    )
 
 
 def prepare_for_ego_test():
@@ -42,10 +43,12 @@ def prepare_for_ego_test():
     }
 
     # lanelet config
-    lanelet = Lanelet(lanelet_id=0,
-                      left_vertices=np.array([[0.0, 3.0], [10.0, 3.0]]),
-                      center_vertices=np.array([[0.0, 0.0], [10.0, 0.0]]),
-                      right_vertices=np.array([[0.0, -3.0], [10.0, -3.0]]))
+    lanelet = Lanelet(
+        lanelet_id=0,
+        left_vertices=np.array([[0.0, 3.0], [10.0, 3.0]]),
+        center_vertices=np.array([[0.0, 0.0], [10.0, 0.0]]),
+        right_vertices=np.array([[0.0, -3.0], [10.0, -3.0]]),
+    )
 
     return dummy_state_pm, dummy_state_ks, lanelet
 
@@ -89,13 +92,13 @@ dummy_state_pm, dummy_state_ks, ego_lanelet = prepare_for_ego_test()
 @pytest.mark.parametrize(
     ("velocity", "steering_angle", "vehicle_model", "expected_output"),
     [
-        (0, 0, 2, np.array([0., 0., 0., 0., 10.])),
-        (10, 0.5, 2, np.array([10., 0., 0.5, 2.118, 10.])),
-        (30, 0.5, 2, np.array([30., 0., 0.5, 6.355, 10.])),
-        ([0, 0], None, 0, np.array([0., 0., 0., 0., 10.])),
-        ([10, 0], None, 0, np.array([10., 0., 0., 0., 10.])),
-        ([10, 2], None, 0, np.array([10., 0., 0., 0., 10.])),
-    ]
+        (0, 0, 2, np.array([0.0, 0.0, 0.0, 0.0, 10.0])),
+        (10, 0.5, 2, np.array([10.0, 0.0, 0.5, 2.118, 10.0])),
+        (30, 0.5, 2, np.array([30.0, 0.0, 0.5, 6.355, 10.0])),
+        ([0, 0], None, 0, np.array([0.0, 0.0, 0.0, 0.0, 10.0])),
+        ([10, 0], None, 0, np.array([10.0, 0.0, 0.0, 0.0, 10.0])),
+        ([10, 2], None, 0, np.array([10.0, 0.0, 0.0, 0.0, 10.0])),
+    ],
 )
 @functional
 @unit_test
@@ -106,16 +109,19 @@ def test_ego_state(velocity, steering_angle, vehicle_model, expected_output):
     }
 
     action_configs = {
-        "action_type": "continuous", # discrete
-        "action_base": "acceleration", # acceleration; jerk
+        "action_type": "continuous",  # discrete
+        "action_base": "acceleration",  # acceleration; jerk
         "long_steps": 5,
         "lat_steps": 5,
-
     }
 
     vehicle_action = ContinuousAction(vehicle_params, action_configs)
     if vehicle_params["vehicle_model"] == 2:  # VehicleModel.KS
-        initial_state = CustomState(**dummy_state_ks, velocity=velocity, steering_angle=steering_angle, )
+        initial_state = CustomState(
+            **dummy_state_ks,
+            velocity=velocity,
+            steering_angle=steering_angle,
+        )
     else:  # VehicleModel.PM
         initial_state = CustomState(**dummy_state_pm, velocity=velocity[0], velocity_y=velocity[1])
     vehicle_action.reset(initial_state, dt=1.0)
@@ -131,16 +137,18 @@ def test_ego_state(velocity, steering_angle, vehicle_model, expected_output):
     observation = ego_observation.observation_dict
     if vehicle_model == 2:
         # Ego-related observations of KS model_type
-        result = np.hstack((observation["v_ego"],
-                            observation["a_ego"],
-                            observation["steering_angle"],
-                            observation["global_turn_rate"],
-                            observation["remaining_steps"]))
+        result = np.hstack(
+            (
+                observation["v_ego"],
+                observation["a_ego"],
+                observation["steering_angle"],
+                observation["global_turn_rate"],
+                observation["remaining_steps"],
+            )
+        )
     else:
         # Ego-related observations of PM model_type
-        result = np.hstack((observation["v_ego"],
-                            observation["a_ego"],
-                            observation["remaining_steps"]))
+        result = np.hstack((observation["v_ego"], observation["a_ego"], observation["remaining_steps"]))
     assert np.allclose(result, expected_output, rtol=0.01)
 
 
@@ -148,14 +156,14 @@ def test_ego_state(velocity, steering_angle, vehicle_model, expected_output):
     ("vehicle_model", "action", "velocity", "steering_angle", "expected_output"),
     [
         # 0: VehicleModel.PM; 2: VehicleModel.KS
-        (VehicleModel.PM, [0., 0.], [30., 0.], None, np.zeros(5)),
-        (VehicleModel.PM, [0.5, 0.5], [30., 0.], None, np.zeros(5)),
-        (VehicleModel.KS, [0., 0.], 30., 0.0, np.zeros(5)),
-        (VehicleModel.KS, [0., 0.1], 30., 0.0, np.zeros(5)),
-        (VehicleModel.KS, [0.02, 0.1], 30., 0.0, np.array([0, 0, 0, 0, 1])),
-        (VehicleModel.KS, [0.05, 0.1], 30., 0.0, np.array([0, 0, 1, 1, 1])),
-        (VehicleModel.KS, [0.2, 0.1], 30., 0.0, np.array([0, 1, 1, 1, 1])),
-    ]
+        (VehicleModel.PM, [0.0, 0.0], [30.0, 0.0], None, np.zeros(5)),
+        (VehicleModel.PM, [0.5, 0.5], [30.0, 0.0], None, np.zeros(5)),
+        (VehicleModel.KS, [0.0, 0.0], 30.0, 0.0, np.zeros(5)),
+        (VehicleModel.KS, [0.0, 0.1], 30.0, 0.0, np.zeros(5)),
+        (VehicleModel.KS, [0.02, 0.1], 30.0, 0.0, np.array([0, 0, 0, 0, 1])),
+        (VehicleModel.KS, [0.05, 0.1], 30.0, 0.0, np.array([0, 0, 1, 1, 1])),
+        (VehicleModel.KS, [0.2, 0.1], 30.0, 0.0, np.array([0, 1, 1, 1, 1])),
+    ],
 )
 @functional
 @unit_test
@@ -165,17 +173,20 @@ def test_check_friction_violation(vehicle_model, action, velocity, steering_angl
         "vehicle_model": vehicle_model.value,  # 0: VehicleModel.PM; 2: VehicleModel.KS;
     }
     action_configs = {
-        "action_type": "continuous", # discrete
-        "action_base": "acceleration", # acceleration; jerk
+        "action_type": "continuous",  # discrete
+        "action_base": "acceleration",  # acceleration; jerk
         "long_steps": 5,
         "lat_steps": 5,
-
     }
     ego_observation = construct_ego_observation(vehicle_model.value)
 
     vehicle_action = ContinuousAction(vehicle_params, action_configs)
     if vehicle_params["vehicle_model"] == VehicleModel.KS.value:
-        initial_state = CustomState(**dummy_state_ks, velocity=velocity, steering_angle=steering_angle, )
+        initial_state = CustomState(
+            **dummy_state_ks,
+            velocity=velocity,
+            steering_angle=steering_angle,
+        )
     else:  # VehicleModel.PM
         initial_state = CustomState(**dummy_state_pm, velocity=velocity[0], velocity_y=velocity[1])
     vehicle_action.reset(initial_state, dt=1.0)
@@ -192,47 +203,55 @@ def test_check_friction_violation(vehicle_model, action, velocity, steering_angl
 @pytest.mark.parametrize(
     ("position", "polyline", "desired_orientation"),
     [
+        (np.array([0, 0]), np.array([[0, 0], [1, 1], [0, 1]]) + 1, 0.785398163),
         (
-                np.array([0, 0]),
-                np.array([[0, 0], [1, 1], [0, 1]]) + 1,
-                0.785398163
+            np.array([0, 0]),
+            np.array([[100, -3], [0, 0], [-100, -3], [0, -103]]),
+            3.111601,
         ),
         (
-                np.array([0, 0]),
-                np.array([[100, -3], [0, 0], [-100, -3], [0, -103]]),
-                3.111601,
+            np.array([0, 0]),
+            np.array(
+                [
+                    [-7.3275, 12.5257],
+                    [-7.5254, 9.1777],
+                    [-11.278, 9.1652],
+                    [-15.0305, 9.1526],
+                    [-15.1272, 12.6073],
+                    [-11.2273, 12.5665],
+                ]
+            ),
+            -1.6298375,
         ),
         (
-                np.array([0, 0]),
-                np.array([[-7.3275, 12.5257],
-                          [-7.5254, 9.1777],
-                          [-11.278, 9.1652],
-                          [-15.0305, 9.1526],
-                          [-15.1272, 12.6073],
-                          [-11.2273, 12.5665]]),
-                -1.6298375
+            np.array([0, 0]),
+            np.array(
+                [
+                    [-73.275, 12.5257],
+                    [-75.254, 9.1777],
+                    [-112.78, 9.1652],
+                    [-150.305, 9.1526],
+                    [-151.272, 12.6073],
+                    [-112.273, 12.5665],
+                ]
+            ),
+            -2.1046453,
         ),
         (
-                np.array([0, 0]),
-                np.array([[-73.275, 12.5257],
-                          [-75.254, 9.1777],
-                          [-112.78, 9.1652],
-                          [-150.305, 9.1526],
-                          [-151.272, 12.6073],
-                          [-112.273, 12.5665]]),
-                -2.1046453
+            np.array([7, 12]),
+            np.array(
+                [
+                    [-7.3275, 12.5257],
+                    [-7.5254, 9.1777],
+                    [-11.278, 9.1652],
+                    [-15.0305, 9.1526],
+                    [-15.1272, 12.6073],
+                    [-11.2273, 12.5665],
+                ]
+            ),
+            -1.6298375,
         ),
-        (
-                np.array([7, 12]),
-                np.array([[-7.3275, 12.5257],
-                          [-7.5254, 9.1777],
-                          [-11.278, 9.1652],
-                          [-15.0305, 9.1526],
-                          [-15.1272, 12.6073],
-                          [-11.2273, 12.5665]]),
-                -1.6298375
-        )
-    ]
+    ],
 )
 @functional
 @unit_test

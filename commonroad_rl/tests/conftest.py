@@ -69,15 +69,11 @@ def pytest_collection_modifyitems(items, config):
         scope_marker = item.get_closest_marker("scope")
         type_marker = item.get_closest_marker("type")
         if scope_marker is None:
-            _test_failed_syntax_error[
-                item
-            ] = "The scope of the test has not been defined"
+            _test_failed_syntax_error[item] = "The scope of the test has not been defined"
             selected_items.append(item)
             continue
         if type_marker is None:
-            _test_failed_syntax_error[
-                item
-            ] = "The type of the test has not been defined"
+            _test_failed_syntax_error[item] = "The type of the test has not been defined"
             selected_items.append(item)
             continue
 

@@ -125,7 +125,7 @@ class EgoObservation(Observation):
         return self.observation_dict
 
     def draw(self, render_configs: Dict, **kwargs):
-        """ Method to draw the observation """
+        """Method to draw the observation"""
 
     @staticmethod
     def _check_friction_violation(ego_vehicle: Vehicle):
@@ -140,11 +140,13 @@ class EgoObservation(Observation):
         :param ego_vehicle_lanelet: lanelet of ego vehicle
         :return: heading angle in frenet coordinate system relative to lanelet center vertices between -pi and pi
         """
-        lanelet_angle = EgoObservation._get_orientation_of_polyline(ego_vehicle_state.position,
-                                                                    ego_vehicle_lanelet.center_vertices)
+        lanelet_angle = EgoObservation._get_orientation_of_polyline(
+            ego_vehicle_state.position, ego_vehicle_lanelet.center_vertices
+        )
 
-        return angle_difference(approx_orientation_vector(lanelet_angle),
-                                approx_orientation_vector(ego_vehicle_state.orientation))
+        return angle_difference(
+            approx_orientation_vector(lanelet_angle), approx_orientation_vector(ego_vehicle_state.orientation)
+        )
 
     @staticmethod
     def _get_orientation_of_polyline(position: np.array, polyline: np.array) -> float:
@@ -160,12 +162,14 @@ class EgoObservation(Observation):
 
         idx = spatial.KDTree(polyline).query(position)[1]
         if idx < position.shape[0] - 1:
-            orientation = np.arccos((polyline[idx + 1, 0] - polyline[idx, 0]) /
-                                    np.linalg.norm(polyline[idx + 1] - polyline[idx]))
+            orientation = np.arccos(
+                (polyline[idx + 1, 0] - polyline[idx, 0]) / np.linalg.norm(polyline[idx + 1] - polyline[idx])
+            )
             sign = np.sign(polyline[idx + 1, 1] - polyline[idx, 1])
         else:
-            orientation = np.arccos((polyline[idx, 0] - polyline[idx - 1, 0]) /
-                                    np.linalg.norm(polyline[idx] - polyline[idx - 1]))
+            orientation = np.arccos(
+                (polyline[idx, 0] - polyline[idx - 1, 0]) / np.linalg.norm(polyline[idx] - polyline[idx - 1])
+            )
             sign = np.sign(polyline[idx, 1] - polyline[idx - 1, 1])
         if sign >= 0:
             orientation = np.abs(orientation)

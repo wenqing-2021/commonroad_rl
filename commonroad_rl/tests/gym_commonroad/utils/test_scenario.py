@@ -75,6 +75,7 @@ def test_approx_orientation_vector(orientation, expected):
 #     assert np.all(np.isclose(diff, expected))
 #
 
+
 @pytest.mark.parametrize(
     ("v1", "v2", "expected"),
     [
@@ -315,7 +316,8 @@ def test_ccosy_contains_orig(arr):
     """
     from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
     from commonroad_dc.geometry.util import resample_polyline
-    arr = resample_polyline(arr, step=2.)
+
+    arr = resample_polyline(arr, step=2.0)
     res = CurvilinearCoordinateSystem(arr)
     with does_not_raise():
         for x in arr:

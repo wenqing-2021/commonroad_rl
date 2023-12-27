@@ -24,9 +24,10 @@ class HybridReward(Reward):
         if self.surrounding_configs.get("observe_lane_circ_surrounding", False):
             self.max_obs_dist = self.surrounding_configs["lane_circ_sensor_range_radius"]
         elif self.surrounding_configs.get("observe_lane_rect_surrounding", False):
-            self.max_obs_dist \
-                = np.sqrt((self.surrounding_configs["lane_rect_sensor_range_length"] / 2) ** 2
-                          + (self.surrounding_configs["lane_rect_sensor_range_width"] / 2) ** 2)
+            self.max_obs_dist = np.sqrt(
+                (self.surrounding_configs["lane_rect_sensor_range_length"] / 2) ** 2
+                + (self.surrounding_configs["lane_rect_sensor_range_width"] / 2) ** 2
+            )
         elif self.surrounding_configs.get("observe_lidar_circle_surrounding", False):
             self.max_obs_dist = self.surrounding_configs["lidar_sensor_radius"]
 
@@ -55,7 +56,7 @@ class HybridReward(Reward):
             reward += self.reverse_driving_penalty(ego_action)
 
         # Same lane as goal
-        if self.reward_configs["reward_same_lane_goal"] > 0.:
+        if self.reward_configs["reward_same_lane_goal"] > 0.0:
             reward += self.goal_same_lane_reward(observation_dict)
 
         # Distance advancement
@@ -66,14 +67,15 @@ class HybridReward(Reward):
         if self.goal_configs["observe_distance_goal_time"]:
             reward += self.goal_time_reward(observation_dict, ego_action)
         if (
-                (not self.goal_configs["observe_distance_goal_lat"]
-                 or np.isclose(observation_dict["distance_goal_lat"][0], 0))
-                and
-                (not self.goal_configs["observe_distance_goal_long"]
-                 or np.isclose(observation_dict["distance_goal_long"][0], 0))
-                and
-                (not self.goal_configs["observe_distance_goal_time"]
-                 or observation_dict["distance_goal_time"] == 0)
+            (
+                not self.goal_configs["observe_distance_goal_lat"]
+                or np.isclose(observation_dict["distance_goal_lat"][0], 0)
+            )
+            and (
+                not self.goal_configs["observe_distance_goal_long"]
+                or np.isclose(observation_dict["distance_goal_long"][0], 0)
+            )
+            and (not self.goal_configs["observe_distance_goal_time"] or observation_dict["distance_goal_time"] == 0)
         ):
             # Closing in on goal-orientation
             if self.goal_configs["observe_distance_goal_orientation"]:
@@ -91,10 +93,9 @@ class HybridReward(Reward):
         #      if self.reward_configs["yield_reward"]:
         #         reward += self.yield_reward(observation_dict)
 
-
         # orientation to reference path's orientation reward
         if self.lanelet_configs["observe_route_reference_path"]:
-           reward+=self. orientation_to_reference_reward(observation_dict)
+            reward += self.orientation_to_reference_reward(observation_dict)
 
         # TODO: was commented out in original reward, needs to be reworked/removed?
         # penalize running given stop sign
@@ -143,8 +144,10 @@ class HybridReward(Reward):
         long_advance = observation_dict["distance_goal_long_advance"][0]
         lat_advance = observation_dict["distance_goal_lat_advance"][0]
 
-        return self.reward_configs["reward_closer_to_goal_long"] * long_advance + \
-               self.reward_configs["reward_closer_to_goal_lat"] * lat_advance
+        return (
+            self.reward_configs["reward_closer_to_goal_long"] * long_advance
+            + self.reward_configs["reward_closer_to_goal_lat"] * lat_advance
+        )
 
     @staticmethod
     def _time_to_goal_weight(ego_velocity, distance, goal_time_distance):
@@ -153,18 +156,18 @@ class HybridReward(Reward):
         """
         goal_time_distance = abs(goal_time_distance)
         if np.isclose(distance, 0):
-            return 1.
+            return 1.0
         if not np.isclose(ego_velocity, 0):
             time_to_goal = abs(distance / ego_velocity)
             if not np.isclose(time_to_goal, 0):
                 return min(time_to_goal / goal_time_distance, goal_time_distance / time_to_goal)
-        return 0.
+        return 0.0
 
     def goal_same_lane_reward(self, observation_dict: dict):
-        if observation_dict["distance_goal_lat"] < 2.:
+        if observation_dict["distance_goal_lat"] < 2.0:
             return self.reward_configs["reward_same_lane_goal"]
         else:
-            return 0.
+            return 0.0
 
     def goal_time_reward(self, observation_dict: dict, ego_action: Action) -> float:
         """Reward for getting closer to goal time"""
@@ -173,30 +176,37 @@ class HybridReward(Reward):
         if observation_dict["distance_goal_time"][0] >= 0:
             return 0.0
         elif self.goal_configs["observe_euclidean_distance"]:
-            return self._time_to_goal_weight(
-                ego_action.vehicle.state.velocity,
-                observation_dict["euclidean_distance"][0], observation_dict["distance_goal_time"][0]) * \
-                   self.reward_configs["reward_get_close_goal_time"]
+            return (
+                self._time_to_goal_weight(
+                    ego_action.vehicle.state.velocity,
+                    observation_dict["euclidean_distance"][0],
+                    observation_dict["distance_goal_time"][0],
+                )
+                * self.reward_configs["reward_get_close_goal_time"]
+            )
         else:
             return self.reward_configs["reward_get_close_goal_time"]
 
     def goal_velocity_reward(self, observation_dict: dict, ego_action: Action) -> float:
         """Reward for getting closer to goal velocity"""
         if ego_action.vehicle.vehicle_model == VehicleModel.PM:
-            velocity = np.sqrt(ego_action.vehicle.state.velocity ** 2 + ego_action.vehicle.state.velocity_y ** 2)
+            velocity = np.sqrt(ego_action.vehicle.state.velocity**2 + ego_action.vehicle.state.velocity_y**2)
         else:
             velocity = abs(ego_action.vehicle.state.velocity)
 
-        return self.reward_configs["reward_close_goal_velocity"] \
-               * np.exp(-1.0 * abs(observation_dict["distance_goal_velocity"][0])
-                        / (-1 * observation_dict["distance_goal_velocity"][0] + velocity))
+        return self.reward_configs["reward_close_goal_velocity"] * np.exp(
+            -1.0
+            * abs(observation_dict["distance_goal_velocity"][0])
+            / (-1 * observation_dict["distance_goal_velocity"][0] + velocity)
+        )
 
     def goal_orientation_reward(self, observation_dict: dict) -> float:
         """
         Reward for getting closer to goal orientation
         """
-        return self.reward_configs["reward_close_goal_orientation"] \
-               * np.exp(-1.0 * abs(observation_dict["distance_goal_orientation"][0]) / np.pi)
+        return self.reward_configs["reward_close_goal_orientation"] * np.exp(
+            -1.0 * abs(observation_dict["distance_goal_orientation"][0]) / np.pi
+        )
 
     def reverse_driving_penalty(self, ego_action: Action) -> float:
         """Penalty for driving backwards"""
@@ -208,16 +218,18 @@ class HybridReward(Reward):
         # TODO: fix safe distance reward
 
         reward = 0.0
-        a_max = 11.5 # TODO: load a_max from vehicle parameters
-        lane_change = self.surrounding_configs["observe_lane_change"] and observation_dict["lane_change"] > 0.
+        a_max = 11.5  # TODO: load a_max from vehicle parameters
+        lane_change = self.surrounding_configs["observe_lane_change"] and observation_dict["lane_change"] > 0.0
         # dist_lead = self.max_obs_dist
         # dist_follow = self.max_obs_dist
         # v_rel = [v_rel_left_follow, v_rel_same_follow, v_rel_right_follow, v_rel_left_lead, v_rel_same_lead,
         #          v_rel_right_lead]
         # p_rel = [p_rel_left_follow, p_rel_same_follow, p_rel_right_follow, p_rel_left_lead, p_rel_same_lead,
         #          p_rel_right_lead]
-        if self.surrounding_configs["observe_lane_rect_surrounding"] \
-                or self.surrounding_configs["observe_lane_circ_surrounding"]:
+        if (
+            self.surrounding_configs["observe_lane_rect_surrounding"]
+            or self.surrounding_configs["observe_lane_circ_surrounding"]
+        ):
             dist_lead = observation_dict["lane_based_p_rel"][4]
             dist_follow = observation_dict["lane_based_p_rel"][1]
             v_rel_lead = observation_dict["lane_based_v_rel"][4]
@@ -225,8 +237,8 @@ class HybridReward(Reward):
             v_ego = np.sqrt(np.sum(observation_dict["v_ego"] ** 2))
             v_lead = v_rel_lead + v_ego
             v_follow = v_ego - v_rel_follow
-            safe_dist_lead = max((v_ego ** 2 - v_lead ** 2) / (2 * a_max), 4.)
-            safe_dist_follow = max((v_follow ** 2 - v_ego ** 2) / (2 * a_max), 4.)
+            safe_dist_lead = max((v_ego**2 - v_lead**2) / (2 * a_max), 4.0)
+            safe_dist_follow = max((v_follow**2 - v_ego**2) / (2 * a_max), 4.0)
         # elif self.surrounding_configs["observe_lidar_circle_surrounding"]:
         #     [dist_leading, dist_following] = observation_dict["dist_lead_follow_rel"]
         else:
@@ -242,9 +254,9 @@ class HybridReward(Reward):
     def _safe_distance_reward_function(self, distance: float, safe_distance: float) -> float:
         """Exponential reward function for keeping a safe distance"""
         if distance < safe_distance:
-            return self.reward_configs["reward_safe_distance_coef"] * np.exp(-5. * distance / safe_distance)
+            return self.reward_configs["reward_safe_distance_coef"] * np.exp(-5.0 * distance / safe_distance)
         else:
-            return 0.
+            return 0.0
 
     def traffic_sign_reward(self, observation_dict: dict) -> float:
         """Reward for obeying traffic sings"""
@@ -320,7 +332,7 @@ class HybridReward(Reward):
 
     def lat_distance_to_reference_path_reward(self, observation_dict, distance50pctreward=3) -> float:
         """
-        :param: distance50pctreward: distance in m for which 50% reward is returned 
+        :param: distance50pctreward: distance in m for which 50% reward is returned
 
         postive reward for staying close to the reference path in lateral direction
         max reward: 0.999 (0 m to the reference pathin lat direction)
@@ -335,7 +347,7 @@ class HybridReward(Reward):
         # sigmoid_distance ~= 1 for distance 0m to reference path, ~=0.5 for distance50pctreward m, ~0.01 for 2 * distance50pctreward m
         sigmoid_distance = 1 - 1 / (1 + exp(distance50pctreward - lat))
 
-        return self.reward_configs['reward_lat_distance_reference_path'] * sigmoid_distance
+        return self.reward_configs["reward_lat_distance_reference_path"] * sigmoid_distance
 
     def long_distance_to_reference_path_reward(self, observation_dict, distance50pctreward=5) -> float:
         """
@@ -355,18 +367,19 @@ class HybridReward(Reward):
         elif long > distance50pctreward:
             # if before goal
             # sigmoid_distance ~= 1 for distance 0m to reference path, ~=0.5 for 5m, ~0.01 for 10m
-            return min(1 / (long * distance50pctreward), 1.0) * self.reward_configs[
-                'reward_long_distance_reference_path']
+            return (
+                min(1 / (long * distance50pctreward), 1.0) * self.reward_configs["reward_long_distance_reference_path"]
+            )
 
         elif long < 0:
             # if driven past the goal: penalty
-            return - np.log(abs(long) + 1) * self.reward_configs['reward_long_distance_reference_path']
+            return -np.log(abs(long) + 1) * self.reward_configs["reward_long_distance_reference_path"]
 
-    def orientation_to_reference_reward(self,observation_dict:dict) ->float:
+    def orientation_to_reference_reward(self, observation_dict: dict) -> float:
         """
         Reward for getting closer to reference orientation
         ego orientation closer to the reference orientation, larger the reward
         """
         # see configs.yaml:  distances_route_reference_path, choose the index that are closest to ego vehicle
         ori_to_ref_diff = abs(observation_dict["route_reference_path_orientations"][1])
-        return self.reward_configs['reward_orientation_to_ref']* np.exp(-1.0 * ori_to_ref_diff/ np.pi)
+        return self.reward_configs["reward_orientation_to_ref"] * np.exp(-1.0 * ori_to_ref_diff / np.pi)

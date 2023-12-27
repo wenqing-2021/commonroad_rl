@@ -85,9 +85,7 @@ def get_lane_marker(ego_vehicle_lanelet: Lanelet) -> Tuple[LineString, LineStrin
     return left_marker_line, right_marker_line
 
 
-def interpolate_steering_angles(
-        state_list: List[State], parameters: VehicleParameters, dt: float
-) -> List[State]:
+def interpolate_steering_angles(state_list: List[State], parameters: VehicleParameters, dt: float) -> List[State]:
     """
     Interpolates the not defined steering angles based on KS Model
 
@@ -101,14 +99,10 @@ def interpolate_steering_angles(
 
     l_wb = parameters.a + parameters.b
 
-    [orientations, velocities] = np.array(
-        [[state.orientation, state.velocity] for state in state_list]
-    ).T
+    [orientations, velocities] = np.array([[state.orientation, state.velocity] for state in state_list]).T
 
     orientation_vectors = approx_orientation_vector(orientations)
-    psi_dots = (
-            angle_difference(orientation_vectors[:, :-1].T, orientation_vectors[:, 1:].T) / dt
-    )
+    psi_dots = angle_difference(orientation_vectors[:, :-1].T, orientation_vectors[:, 1:].T) / dt
     avg_velocities = np.mean(np.array([velocities[:-1], velocities[1:]]), axis=0)
     avg_velocities[avg_velocities == 0.0] += np.finfo(float).eps
 
@@ -119,9 +113,7 @@ def interpolate_steering_angles(
         default_steering_angle = 0.0
         steering_angles = np.array([default_steering_angle])
 
-    steering_angles = np.clip(
-        steering_angles, parameters.steering.min, parameters.steering.max
-    )
+    steering_angles = np.clip(steering_angles, parameters.steering.min, parameters.steering.max)
 
     def get_state_with_steering_angle(state: State, steering_angle: float):
         if hasattr(state, "steering_angle"):
@@ -133,9 +125,7 @@ def interpolate_steering_angles(
 
     return list(
         map(
-            lambda state, steering_angle: get_state_with_steering_angle(
-                state, steering_angle
-            ),
+            lambda state, steering_angle: get_state_with_steering_angle(state, steering_angle),
             state_list,
             steering_angles,
         )
@@ -156,10 +146,10 @@ def interpolate_steering_angles_of_obstacle(obstacle: DynamicObstacle, parameter
 
 
 def check_trajectory(
-        obstacle: DynamicObstacle,
-        vehicle_model: VehicleModel,
-        vehicle_type: VehicleType,
-        dt: float,
+    obstacle: DynamicObstacle,
+    vehicle_model: VehicleModel,
+    vehicle_type: VehicleType,
+    dt: float,
 ) -> bool:
     """
     Checks whether the trajectory of a given obstacle is feasible with a given vehicle model

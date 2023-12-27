@@ -86,9 +86,7 @@ def optimize_hyperparams(
         LOGGER.addHandler(stream_handler)
 
         if log_path is not None:
-            file_handler = logging.FileHandler(
-                filename=os.path.join(log_path, "console_copy.txt")
-            )
+            file_handler = logging.FileHandler(filename=os.path.join(log_path, "console_copy.txt"))
             if verbose == 2:
                 file_handler.setLevel(logging.DEBUG)
             elif verbose == 1:
@@ -122,29 +120,19 @@ def optimize_hyperparams(
         # cf https://scikit-optimize.github.io/#skopt.Optimizer
         # GP: gaussian process
         # Gradient boosted regression: GBRT
-        sampler = SkoptSampler(
-            skopt_kwargs={"base_estimator": "GP", "acq_func": "gp_hedge"}
-        )
+        sampler = SkoptSampler(skopt_kwargs={"base_estimator": "GP", "acq_func": "gp_hedge"})
     else:
-        raise ValueError(
-            "[hyperparams_opt.py] Unknown sampler: {}".format(sampler_method)
-        )
+        raise ValueError("[hyperparams_opt.py] Unknown sampler: {}".format(sampler_method))
 
     if pruner_method == "halving":
-        pruner = SuccessiveHalvingPruner(
-            min_resource=1, reduction_factor=4, min_early_stopping_rate=0
-        )
+        pruner = SuccessiveHalvingPruner(min_resource=1, reduction_factor=4, min_early_stopping_rate=0)
     elif pruner_method == "median":
-        pruner = MedianPruner(
-            n_startup_trials=n_startup_trials, n_warmup_steps=n_evaluations // 3
-        )
+        pruner = MedianPruner(n_startup_trials=n_startup_trials, n_warmup_steps=n_evaluations // 3)
     elif pruner_method == "none":
         # Do not prune
         pruner = MedianPruner(n_startup_trials=n_trials, n_warmup_steps=n_evaluations)
     else:
-        raise ValueError(
-            "[hyperparams_opt.py] Unknown pruner: {}".format(pruner_method)
-        )
+        raise ValueError("[hyperparams_opt.py] Unknown pruner: {}".format(pruner_method))
 
     LOGGER.debug("Sampler: {} - Pruner: {}".format(sampler_method, pruner_method))
 
@@ -178,12 +166,8 @@ def optimize_hyperparams(
         # Save data for later inspection
         tmp_path = os.path.join(log_path, "trial_" + str(trial.number))
         os.makedirs(tmp_path, exist_ok=True)
-        with open(
-            os.path.join(tmp_path, "sampled_model_hyperparameters.yml"), "w"
-        ) as f:
-            LOGGER.info(
-                "Saving sampled observation configurations into {}".format(tmp_path)
-            )
+        with open(os.path.join(tmp_path, "sampled_model_hyperparameters.yml"), "w") as f:
+            LOGGER.info("Saving sampled observation configurations into {}".format(tmp_path))
             yaml.dump(kwargs_hyperparams, f)
         LOGGER.debug("Sampled model hyperparameters:")
         LOGGER.debug(pformat(kwargs_hyperparams))
@@ -197,11 +181,7 @@ def optimize_hyperparams(
         if isinstance(model.get_env(), VecEnv):
             eval_freq_ = max(eval_freq // model.get_env().num_envs, 1)
 
-        LOGGER.info(
-            "Evaluating with {} episodes after every {} time steps".format(
-                n_eval_episodes, eval_freq_
-            )
-        )
+        LOGGER.info("Evaluating with {} episodes after every {} time steps".format(n_eval_episodes, eval_freq_))
 
         # TODO: use non-deterministic eval for Atari?
         hyperparams_eval_callback = HyperparamsTrialEvalCallback(
@@ -241,9 +221,7 @@ def optimize_hyperparams(
         return cost
 
     try:
-        hyperparams_study.optimize(
-            objective_hyperparams, n_trials=n_trials, n_jobs=n_jobs
-        )
+        hyperparams_study.optimize(objective_hyperparams, n_trials=n_trials, n_jobs=n_jobs)
     except KeyboardInterrupt:
         pass
 
@@ -263,12 +241,8 @@ def sample_ppo2_params(trial):
     :return: (dict)
     """
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
-    n_steps = trial.suggest_categorical(
-        "n_steps", [16, 32, 64, 128, 256, 512, 1024, 2048]
-    )
-    gamma = trial.suggest_categorical(
-        "gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999]
-    )
+    n_steps = trial.suggest_categorical("n_steps", [16, 32, 64, 128, 256, 512, 1024, 2048])
+    gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
     learning_rate = trial.suggest_loguniform("lr", 1e-5, 1)
     ent_coef = trial.suggest_loguniform("ent_coef", 0.00000001, 0.1)
     cliprange = trial.suggest_categorical("cliprange", [0.1, 0.2, 0.3, 0.4])
@@ -299,12 +273,8 @@ def sample_a2c_params(trial):
     :param trial: (optuna.trial)
     :return: (dict)
     """
-    gamma = trial.suggest_categorical(
-        "gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999]
-    )
-    n_steps = trial.suggest_categorical(
-        "n_steps", [8, 16, 32, 64, 128, 256, 512, 1024, 2048]
-    )
+    gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
+    n_steps = trial.suggest_categorical("n_steps", [8, 16, 32, 64, 128, 256, 512, 1024, 2048])
     lr_schedule = trial.suggest_categorical("lr_schedule", ["linear", "constant"])
     learning_rate = trial.suggest_loguniform("lr", 1e-5, 1)
     ent_coef = trial.suggest_loguniform("ent_coef", 0.00000001, 0.1)
@@ -329,12 +299,8 @@ def sample_acktr_params(trial):
     :param trial: (optuna.trial)
     :return: (dict)
     """
-    gamma = trial.suggest_categorical(
-        "gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999]
-    )
-    n_steps = trial.suggest_categorical(
-        "n_steps", [16, 32, 64, 128, 256, 512, 1024, 2048]
-    )
+    gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
+    n_steps = trial.suggest_categorical("n_steps", [16, 32, 64, 128, 256, 512, 1024, 2048])
     lr_schedule = trial.suggest_categorical("lr_schedule", ["linear", "constant"])
     learning_rate = trial.suggest_loguniform("lr", 1e-5, 1)
     ent_coef = trial.suggest_loguniform("ent_coef", 0.00000001, 0.1)
@@ -357,24 +323,16 @@ def sample_sac_params(trial):
     :param trial: (optuna.trial)
     :return: (dict)
     """
-    gamma = trial.suggest_categorical(
-        "gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999]
-    )
+    gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
     learning_rate = trial.suggest_loguniform("lr", 1e-5, 1)
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256, 512])
-    buffer_size = trial.suggest_categorical(
-        "buffer_size", [int(1e4), int(1e5), int(1e6)]
-    )
-    learning_starts = trial.suggest_categorical(
-        "learning_starts", [0, 1000, 10000, 20000]
-    )
+    buffer_size = trial.suggest_categorical("buffer_size", [int(1e4), int(1e5), int(1e6)])
+    learning_starts = trial.suggest_categorical("learning_starts", [0, 1000, 10000, 20000])
     train_freq = trial.suggest_categorical("train_freq", [1, 10, 100, 300])
     # gradient_steps takes too much time
     # gradient_steps = trial.suggest_categorical('gradient_steps', [1, 100, 300])
     gradient_steps = train_freq
-    ent_coef = trial.suggest_categorical(
-        "ent_coef", ["auto", 0.5, 0.1, 0.05, 0.01, 0.0001]
-    )
+    ent_coef = trial.suggest_categorical("ent_coef", ["auto", 0.5, 0.1, 0.05, 0.01, 0.0001])
     net_arch = trial.suggest_categorical("net_arch", ["small", "medium", "big"])
 
     net_arch = {
@@ -385,9 +343,7 @@ def sample_sac_params(trial):
 
     target_entropy = "auto"
     if ent_coef == "auto":
-        target_entropy = trial.suggest_categorical(
-            "target_entropy", ["auto", -1, -10, -20, -50, -100]
-        )
+        target_entropy = trial.suggest_categorical("target_entropy", ["auto", -1, -10, -20, -50, -100])
 
     return {
         "gamma": gamma,
@@ -410,21 +366,13 @@ def sample_td3_params(trial):
     :param trial: (optuna.trial)
     :return: (dict)
     """
-    gamma = trial.suggest_categorical(
-        "gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999]
-    )
+    gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
     learning_rate = trial.suggest_loguniform("lr", 1e-5, 1)
-    batch_size = trial.suggest_categorical(
-        "batch_size", [16, 32, 64, 100, 128, 256, 512]
-    )
-    buffer_size = trial.suggest_categorical(
-        "buffer_size", [int(1e4), int(1e5), int(1e6)]
-    )
+    batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 100, 128, 256, 512])
+    buffer_size = trial.suggest_categorical("buffer_size", [int(1e4), int(1e5), int(1e6)])
     train_freq = trial.suggest_categorical("train_freq", [1, 10, 100, 1000, 2000])
     gradient_steps = train_freq
-    noise_type = trial.suggest_categorical(
-        "noise_type", ["ornstein-uhlenbeck", "normal"]
-    )
+    noise_type = trial.suggest_categorical("noise_type", ["ornstein-uhlenbeck", "normal"])
     noise_std = trial.suggest_uniform("noise_std", 0, 1)
 
     hyperparams = {
@@ -455,9 +403,7 @@ def sample_trpo_params(trial):
     :param trial: (optuna.trial)
     :return: (dict)
     """
-    gamma = trial.suggest_categorical(
-        "gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999]
-    )
+    gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
     timesteps_per_batch = trial.suggest_categorical(
         "timesteps_per_batch", [16, 32, 64, 128, 256, 512, 1024, 2048, 4096]
     )
@@ -490,23 +436,15 @@ def sample_ddpg_params(trial):
     :param trial: (optuna.trial)
     :return: (dict)
     """
-    gamma = trial.suggest_categorical(
-        "gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999]
-    )
+    gamma = trial.suggest_categorical("gamma", [0.9, 0.95, 0.98, 0.99, 0.995, 0.999, 0.9999])
     # actor_lr = trial.suggest_loguniform('actor_lr', 1e-5, 1)
     # critic_lr = trial.suggest_loguniform('critic_lr', 1e-5, 1)
     learning_rate = trial.suggest_loguniform("lr", 1e-5, 1)
     batch_size = trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256])
-    buffer_size = trial.suggest_categorical(
-        "memory_limit", [int(1e4), int(1e5), int(1e6)]
-    )
-    noise_type = trial.suggest_categorical(
-        "noise_type", ["ornstein-uhlenbeck", "normal", "adaptive-param"]
-    )
+    buffer_size = trial.suggest_categorical("memory_limit", [int(1e4), int(1e5), int(1e6)])
+    noise_type = trial.suggest_categorical("noise_type", ["ornstein-uhlenbeck", "normal", "adaptive-param"])
     noise_std = trial.suggest_uniform("noise_std", 0, 1)
-    normalize_observations = trial.suggest_categorical(
-        "normalize_observations", [True, False]
-    )
+    normalize_observations = trial.suggest_categorical("normalize_observations", [True, False])
     normalize_returns = trial.suggest_categorical("normalize_returns", [True, False])
 
     hyperparams = {
@@ -520,9 +458,7 @@ def sample_ddpg_params(trial):
     }
 
     if noise_type == "adaptive-param":
-        hyperparams["param_noise"] = AdaptiveParamNoiseSpec(
-            initial_stddev=noise_std, desired_action_stddev=noise_std
-        )
+        hyperparams["param_noise"] = AdaptiveParamNoiseSpec(initial_stddev=noise_std, desired_action_stddev=noise_std)
         # Apply layer normalization when using parameter perturbation
         hyperparams["policy_kwargs"] = dict(layer_norm=True)
     elif noise_type == "normal":
@@ -550,16 +486,10 @@ def sample_her_params(trial):
     elif trial.model_class == TD3:
         hyperparams = sample_td3_params(trial)
     else:
-        raise NotImplementedError(
-            f"Trial model class {trial.model_class} not supported"
-        )
+        raise NotImplementedError(f"Trial model class {trial.model_class} not supported")
 
-    hyperparams["random_exploration"] = trial.suggest_uniform(
-        "random_exploration", 0, 1
-    )
-    hyperparams["n_sampled_goal"] = trial.suggest_categorical(
-        "n_sampled_goal", [1, 2, 4, 6, 8]
-    )
+    hyperparams["random_exploration"] = trial.suggest_uniform("random_exploration", 0, 1)
+    hyperparams["n_sampled_goal"] = trial.suggest_categorical("n_sampled_goal", [1, 2, 4, 6, 8])
 
     return hyperparams
 

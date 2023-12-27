@@ -83,17 +83,13 @@ def check_successors(lanelet_network: LaneletNetwork):
             for i in l.successor:
                 suc = lanelet_network.find_lanelet_by_id(i)
                 if not suc.predecessor or not l.lanelet_id in suc.predecessor:
-                    print(
-                        f"Lanelet {i} is successor of {l.lanelet_id} but does not have {l.lanelet_id} as predecessor"
-                    )
+                    print(f"Lanelet {i} is successor of {l.lanelet_id} but does not have {l.lanelet_id} as predecessor")
                     errors += 1
         if l.predecessor is not None:
             for i in l.predecessor:
                 pred = lanelet_network.find_lanelet_by_id(i)
                 if not pred.successor or not l.lanelet_id in pred.successor:
-                    print(
-                        f"Lanelet {i} is predecessor of {l.lanelet_id} but does not have {l.lanelet_id} as successor"
-                    )
+                    print(f"Lanelet {i} is predecessor of {l.lanelet_id} but does not have {l.lanelet_id} as successor")
                     errors += 1
     return errors
 
@@ -108,9 +104,7 @@ def check_obstacle_off_road(scenario: Scenario):
                     off_road = False
                     break
         elif isinstance(o, StaticObstacle):
-            off_road = not scenario.lanelet_network.find_lanelet_by_position(
-                [o.initial_state.position]
-            )
+            off_road = not scenario.lanelet_network.find_lanelet_by_position([o.initial_state.position])
         try:
             assert not off_road
         except AssertionError:
@@ -156,9 +150,7 @@ def validate(xml_path: Path, xsd_path: Path) -> 0:
 
 def get_parser():
     parser = ArgumentParser(description=__desc__)
-    parser.add_argument(
-        "input", help="Path to input file(s) (.xml commonroad scenario)", nargs="+"
-    )
+    parser.add_argument("input", help="Path to input file(s) (.xml commonroad scenario)", nargs="+")
     parser.add_argument(
         "-s",
         help="Path to schema file (.xsd commonroad specification)",

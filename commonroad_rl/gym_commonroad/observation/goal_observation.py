@@ -15,6 +15,7 @@ from commonroad_rl.gym_commonroad.observation.observation import Observation
 from commonroad_rl.gym_commonroad.utils.navigator import Navigator
 from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
 
+
 class GoalObservation(Observation):
     """
     This class contains all helper methods and the main observation method for observations related to the goal
@@ -49,20 +50,23 @@ class GoalObservation(Observation):
 
         if self.observe_distance_goal_long:
             observation_space_dict["distance_goal_long"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
-            observation_space_dict["distance_goal_long_advance"] = gym.spaces.Box(-np.inf, np.inf, (1,),
-                                                                                  dtype=np.float32)
+            observation_space_dict["distance_goal_long_advance"] = gym.spaces.Box(
+                -np.inf, np.inf, (1,), dtype=np.float32
+            )
         if self.observe_distance_goal_lat:
             observation_space_dict["distance_goal_lat"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
-            observation_space_dict["distance_goal_lat_advance"] = gym.spaces.Box(-np.inf, np.inf, (1,),
-                                                                                 dtype=np.float32)
+            observation_space_dict["distance_goal_lat_advance"] = gym.spaces.Box(
+                -np.inf, np.inf, (1,), dtype=np.float32
+            )
         if self.observe_distance_goal_long_lane:
             observation_space_dict["distance_goal_long_lane"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
 
         if self.observe_distance_goal_time:
             observation_space_dict["distance_goal_time"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
         if self.observe_distance_goal_orientation:
-            observation_space_dict["distance_goal_orientation"] = gym.spaces.Box(-np.inf, np.inf, (1,),
-                                                                                 dtype=np.float32)
+            observation_space_dict["distance_goal_orientation"] = gym.spaces.Box(
+                -np.inf, np.inf, (1,), dtype=np.float32
+            )
         if self.observe_distance_goal_velocity:
             observation_space_dict["distance_goal_velocity"] = gym.spaces.Box(-np.inf, np.inf, (1,), dtype=np.float32)
 
@@ -74,24 +78,30 @@ class GoalObservation(Observation):
 
         return observation_space_dict
 
-    def observe(self, ego_state: State, goal: Union[GoalRegion, None] = None,
-                scenario: Union[Scenario, None] = None, planning_problem: Union[PlanningProblem, None] = None,
-                ego_lanelet_ids: Union[List[int], None] = None, navigator: Union[Navigator, None] = None,
-                episode_length: int = None,local_ccosy: Union[None, CurvilinearCoordinateSystem] = None) \
-            -> Union[np.array, Dict]:
-        """ Create goal related observation for given state in an environment.
+    def observe(
+        self,
+        ego_state: State,
+        goal: Union[GoalRegion, None] = None,
+        scenario: Union[Scenario, None] = None,
+        planning_problem: Union[PlanningProblem, None] = None,
+        ego_lanelet_ids: Union[List[int], None] = None,
+        navigator: Union[Navigator, None] = None,
+        episode_length: int = None,
+        local_ccosy: Union[None, CurvilinearCoordinateSystem] = None,
+    ) -> Union[np.array, Dict]:
+        """Create goal related observation for given state in an environment.
 
-            :param ego_state: state from which to observe the environment
-            :param goal: goal region
-            :param scenario: current Scenario
-            :param planning_problem: the current planning problem
-            :return: ndarray of observation if flatten == True, observation dict otherwise
+        :param ego_state: state from which to observe the environment
+        :param goal: goal region
+        :param scenario: current Scenario
+        :param planning_problem: the current planning problem
+        :return: ndarray of observation if flatten == True, observation dict otherwise
         """
         observation_dict = {}
 
         if self.observe_euclidean_distance:
             distance = GoalObservation._get_goal_euclidean_distance(ego_state.position, goal)
-            observation_dict['euclidean_distance'] = np.array([distance])
+            observation_dict["euclidean_distance"] = np.array([distance])
         # observe distance goal long and lat and also the advance versions
         if self.observe_distance_goal_long or self.observe_distance_goal_lat:
             distance_goal_long, distance_goal_lat = self.get_long_lat_distance_to_goal(ego_state.position, navigator)
@@ -102,8 +112,9 @@ class GoalObservation(Observation):
             if distance_goal_long is np.nan:
                 distance_goal_long = self.observation_history_dict.get("distance_goal_long", 1e4)
                 distance_goal_lat = self.observation_history_dict.get("distance_goal_lat", 1e4)
-            (distance_goal_long_advance, distance_goal_lat_advance) = \
-                self._get_long_lat_distance_advance_to_goal(distance_goal_long, distance_goal_lat)
+            (distance_goal_long_advance, distance_goal_lat_advance) = self._get_long_lat_distance_advance_to_goal(
+                distance_goal_long, distance_goal_lat
+            )
 
             self.observation_history_dict["distance_goal_long_advance"] = distance_goal_long_advance
             self.observation_history_dict["distance_goal_lat_advance"] = distance_goal_lat_advance
@@ -119,8 +130,11 @@ class GoalObservation(Observation):
             observation_dict["distance_goal_time"] = np.array([distance_goal_time])
         # observe distance to the goal orientation from ego
         if self.observe_distance_goal_orientation:
-            ego_state_orientation = ego_state.orientation if hasattr(ego_state, "orientation") else \
-                np.arctan2(ego_state.velocity_y, ego_state.velocity)
+            ego_state_orientation = (
+                ego_state.orientation
+                if hasattr(ego_state, "orientation")
+                else np.arctan2(ego_state.velocity_y, ego_state.velocity)
+            )
             distance_goal_orientation = GoalObservation._get_goal_orientation_distance(ego_state_orientation, goal)
             observation_dict["distance_goal_orientation"] = np.array([distance_goal_orientation])
         # observe difference between ego velocity and goal velocity
@@ -130,8 +144,7 @@ class GoalObservation(Observation):
 
         # Get the longitudinal distance until the lane change must be finished
         if self.observe_distance_goal_long_lane:
-            distance_goal_long_lane = self._get_long_distance_until_lane_change(ego_state, ego_lanelet_ids,
-                                                                                navigator)
+            distance_goal_long_lane = self._get_long_distance_until_lane_change(ego_state, ego_lanelet_ids, navigator)
             self.observation_history_dict["distance_goal_long_lane"] = distance_goal_long_lane
             observation_dict["distance_goal_long_lane"] = np.array([distance_goal_long_lane])
 
@@ -145,14 +158,16 @@ class GoalObservation(Observation):
             is_time_out = GoalObservation._check_is_time_out(ego_state, goal, is_goal_reached, episode_length)
             if not is_time_out:
                 # check if ego vehicle reaches the end of the road
-                if not local_ccosy.cartesian_point_inside_projection_domain(ego_state.position[0], ego_state.position[1]):
-                    is_time_out=True
+                if not local_ccosy.cartesian_point_inside_projection_domain(
+                    ego_state.position[0], ego_state.position[1]
+                ):
+                    is_time_out = True
             observation_dict["is_time_out"] = np.array([is_time_out])
 
         return observation_dict
 
     def draw(self, render_configs: Dict, render: MPRenderer, navigator: Union[None, Navigator]):
-        """ Method to draw the observation """
+        """Method to draw the observation"""
         if render_configs["render_global_ccosy"]:
             # TODO: This functionality has been taken from commonroad-route-planner
             # As soon as the route-planner supports drawing only the ccosy, this part should be replaced
@@ -162,13 +177,16 @@ class GoalObservation(Observation):
             draw_params.draw_left_bound = False
             draw_params.draw_right_bound = False
             draw_params.draw_start_and_direction = False
-            draw_params.draw_linewidth = 1.
+            draw_params.draw_linewidth = 1.0
             draw_params.fill_lanelet = False
             draw_params.facecolor = "#128c01"
 
             # TODO: temporary fix for missing draw method in Lanelet, remove after fixed in cr-io
             from commonroad.scenario.lanelet import LaneletNetwork
-            LaneletNetwork.create_from_lanelet_list(navigator.merged_route_lanelets).draw(render, draw_params=draw_params)
+
+            LaneletNetwork.create_from_lanelet_list(navigator.merged_route_lanelets).draw(
+                render, draw_params=draw_params
+            )
             # for route_merged_lanelet in navigator.merged_route_lanelets:
             #     route_merged_lanelet.draw(render, draw_params=draw_params)
 
@@ -182,21 +200,24 @@ class GoalObservation(Observation):
         :return euclidean distance
         """
         if "position" not in goal.state_list[0].attributes:
-            return 0.
+            return 0.0
 
         else:
             f_pos = goal.state_list[0].position
             if isinstance(f_pos, ShapeGroup):
                 goal_position_list = np.array(
-                    [GoalObservation._convert_shape_group_to_center(s.position) for s in goal.state_list])
+                    [GoalObservation._convert_shape_group_to_center(s.position) for s in goal.state_list]
+                )
             elif isinstance(f_pos, Shape):
                 goal_position_list = np.array([s.position.center for s in goal.state_list])
             else:
-                warnings.warn(f"Trying to calculate relative goal orientation but goal state position "
-                              f"type ({type(f_pos)}) is not support, please set "
-                              f"observe_distance_goal_euclidean = False or "
-                              f"change state position type to one of the following: Polygon, Rectangle, Circle")
-                return 0.
+                warnings.warn(
+                    f"Trying to calculate relative goal orientation but goal state position "
+                    f"type ({type(f_pos)}) is not support, please set "
+                    f"observe_distance_goal_euclidean = False or "
+                    f"change state position type to one of the following: Polygon, Rectangle, Circle"
+                )
+                return 0.0
             goal_position_mean = np.mean(goal_position_list, axis=0)
             return np.linalg.norm(position - goal_position_mean)
 
@@ -205,8 +226,9 @@ class GoalObservation(Observation):
         position_list = [shape.center for shape in shape_group.shapes]
         return np.mean(np.array(position_list), axis=0)
 
-    def _get_long_lat_distance_advance_to_goal(self, distance_goal_long: float,
-                                               distance_goal_lat: float) -> Tuple[float, float]:
+    def _get_long_lat_distance_advance_to_goal(
+        self, distance_goal_long: float, distance_goal_lat: float
+    ) -> Tuple[float, float]:
         """
         Get longitudinal and lateral distances to the goal over the planned route
 
@@ -219,7 +241,8 @@ class GoalObservation(Observation):
             distance_goal_long_advance = 0.0
         else:
             distance_goal_long_advance = abs(self.observation_history_dict["distance_goal_long"]) - abs(
-                distance_goal_long)
+                distance_goal_long
+            )
 
         if "distance_goal_lat" not in self.observation_history_dict or not self.observe_distance_goal_lat:
             distance_goal_lat_advance = 0.0
@@ -242,7 +265,7 @@ class GoalObservation(Observation):
         :return difference to the nearest goal velocity boundary
         """
         if "velocity" not in goal.state_list[0].attributes:
-            return 0.
+            return 0.0
 
         else:
             velocity_start_list = np.array([s.velocity.start for s in goal.state_list])
@@ -254,7 +277,7 @@ class GoalObservation(Observation):
             elif velocity > goal_velocity_interval_end:
                 return velocity - goal_velocity_interval_end
             else:
-                return 0.
+                return 0.0
 
     @staticmethod
     def _get_goal_orientation_distance(orientation: float, goal: GoalRegion) -> float:
@@ -270,7 +293,7 @@ class GoalObservation(Observation):
         :return difference to the nearest goal orientation boundary using radians in interval [-pi,pi]
         """
         if "orientation" not in goal.state_list[0].attributes:
-            return 0.
+            return 0.0
 
         else:
             orientation_start_list = np.array([s.orientation.start for s in goal.state_list])
@@ -291,8 +314,9 @@ class GoalObservation(Observation):
             else:
                 return -distance_end_right
 
-    def _get_long_distance_until_lane_change(self, ego_state: State, ego_vehicle_lanelet_ids: List[int],
-                                             navigator: Navigator) -> float:
+    def _get_long_distance_until_lane_change(
+        self, ego_state: State, ego_vehicle_lanelet_ids: List[int], navigator: Navigator
+    ) -> float:
         """
         Get the longitudinal distance until the lane change must be finished. It means that the ego vehicle is
         allowed to continue its was in the current lanelet and in its adjacent, but after this returned value,
@@ -310,8 +334,7 @@ class GoalObservation(Observation):
             if not hasattr(ego_state, "orientation"):
                 setattr(ego_state, "orientation", np.arctan2(ego_state.velocity_y, ego_state.velocity))
         except ValueError:
-            assert self.distance_goal_long_lane, \
-                "Ego vehicle started outside the global coordinate system"
+            assert self.distance_goal_long_lane, "Ego vehicle started outside the global coordinate system"
             return self.observation_history_dict["distance_goal_long_lane"]
 
     @staticmethod

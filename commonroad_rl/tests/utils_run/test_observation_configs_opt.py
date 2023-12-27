@@ -17,16 +17,12 @@ from commonroad_rl.tests.common.path import *
 resource_path = resource_root("test_gym_commonroad/pickles")
 output_path = output_root("test_observation_configs_opt")
 
-@pytest.mark.parametrize(
-    ("env_id"),
-    [("commonroad-v1")]
-)
 
+@pytest.mark.parametrize(("env_id"), [("commonroad-v1")])
 @slow
 @integration_test
 @functional
 def test_optimize_observation_configs(env_id):
-
     # Run training
     meta_scenario_path = os.path.join(resource_path, "meta_scenario")
     train_reset_config_path = os.path.join(resource_path, "problem")
@@ -66,8 +62,10 @@ def test_optimize_observation_configs(env_id):
     run_stable_baselines(args)
 
     model_version = sorted(os.listdir(os.path.join(log_path, algo)))[-1]
-    file_to_check = f"observation_configuration_optimization/" \
-                    f"report_{algo}_{env_id}-10-trials-{num_of_steps}-steps-{sampler}-{pruner}.yml"
+    file_to_check = (
+        f"observation_configuration_optimization/"
+        f"report_{algo}_{env_id}-10-trials-{num_of_steps}-steps-{sampler}-{pruner}.yml"
+    )
     file_path_to_check = os.path.join(log_path, algo, model_version, file_to_check)
 
     assert os.path.isfile(file_path_to_check)

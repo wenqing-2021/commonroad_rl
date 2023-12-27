@@ -4,13 +4,15 @@ from commonroad_rl.tests.common.marker import unit_test, functional
 
 configs = {
     "reward_type": "sparse_reward",
-    "reward_configs":{"sparse_reward": {
-        "reward_goal_reached": 50.,
-        "reward_collision": -50.,
-        "reward_off_road": -20.,
-        "reward_friction_violation": -30.,
-        "reward_time_out": -10.
-    }}
+    "reward_configs": {
+        "sparse_reward": {
+            "reward_goal_reached": 50.0,
+            "reward_collision": -50.0,
+            "reward_off_road": -20.0,
+            "reward_friction_violation": -30.0,
+            "reward_time_out": -10.0,
+        }
+    },
 }
 
 
@@ -23,7 +25,7 @@ def test_sparse_reward():
         "is_collision": [False],
         "is_off_road": [False],
         "is_friction_violation": [False],
-        "is_time_out": [False]
+        "is_time_out": [False],
     }
 
     assert reward.calc_reward(observations, None) == 50
@@ -33,7 +35,7 @@ def test_sparse_reward():
         "is_collision": [False],
         "is_off_road": [True],
         "is_friction_violation": [False],
-        "is_time_out": [False]
+        "is_time_out": [False],
     }
 
     assert reward.calc_reward(observations, None) == -20
