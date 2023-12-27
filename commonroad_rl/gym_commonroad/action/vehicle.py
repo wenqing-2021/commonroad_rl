@@ -12,21 +12,27 @@ from commonroad.scenario.trajectory import State, CustomState
 from commonroad_rl.gym_commonroad.utils.scenario import make_valid_orientation
 from commonroad.common.solution import VehicleModel, VehicleType
 from commonroad_dc.collision.trajectory_queries import trajectory_queries
-from commonroad_dc.feasibility.vehicle_dynamics import VehicleDynamics, FrictionCircleException
+from commonroad_dc.feasibility.vehicle_dynamics import (
+    VehicleDynamics,
+    FrictionCircleException,
+)
 from vehiclemodels.vehicle_parameters import VehicleParameters
 from vehiclemodels.parameters_vehicle1 import parameters_vehicle1
 from vehiclemodels.parameters_vehicle2 import parameters_vehicle2
 from vehiclemodels.parameters_vehicle3 import parameters_vehicle3
 from scipy.integrate import odeint
+import math
 
 N_INTEGRATION_STEPS = 100
 
 extend_enum(VehicleModel, "YawRate", len(VehicleModel))
 extend_enum(VehicleModel, "QP", len(VehicleModel))
 extend_enum(VehicleModel, "PMNonlinear", len(VehicleModel))
-
+extend_enum(VehicleModel, "STL", len(VehicleModel))
 
 # Using VehicleParameterMapping from feasibility checker causes bugs
+
+
 def to_vehicle_parameter(vehicle_type: VehicleType):
     if vehicle_type == VehicleType.FORD_ESCORT:
         return parameters_vehicle1()
@@ -115,7 +121,11 @@ class Vehicle(ABC):
 
     def create_obb_collision_object(self, state: State):
         return pycrcc.RectOBB(
-            self.parameters.l / 2, self.parameters.w / 2, state.orientation, state.position[0], state.position[1]
+            self.parameters.l / 2,
+            self.parameters.w / 2,
+            state.orientation,
+            state.position[0],
+            state.position[1],
         )
 
     def update_collision_object(self, create_convex_hull=True):
@@ -124,7 +134,10 @@ class Vehicle(ABC):
             self._collision_object = pycrcc.TimeVariantCollisionObject(self.previous_state.time_step)
             self._collision_object.append_obstacle(self.create_obb_collision_object(self.previous_state))
             self._collision_object.append_obstacle(self.create_obb_collision_object(self.state))
-            self._collision_object, err = trajectory_queries.trajectory_preprocess_obb_sum(self._collision_object)
+            (
+                self._collision_object,
+                err,
+            ) = trajectory_queries.trajectory_preprocess_obb_sum(self._collision_object)
             if not err:
                 return
             raise Exception("trajectory preprocessing error")
@@ -180,6 +193,38 @@ class Vehicle(ABC):
                     "time_step": initial_state.time_step,
                 }
             )
+        elif self.vehicle_model == VehicleModel.ST:
+            self.initial_state = CustomState(
+                **{
+                    "position": initial_state.position,
+                    "steering_angle": initial_state.steering_angle,
+                    "velocity": initial_state.velocity,
+                    "orientation": make_valid_orientation(initial_state.orientation)
+                    if hasattr(initial_state, "orientation")
+                    else 0.0,
+                    "yaw_rate": initial_state.yaw_rate if hasattr(initial_state, "yaw_rate") else 0.0,
+                    "slip_angle": 0.0,
+                    "time_step": initial_state.time_step,
+                }
+            )
+
+        elif self.vehicle_model == VehicleModel.STL:
+            slip_angle = 0.0
+            v_y = 0.0
+            self.initial_state = CustomState(
+                **{
+                    "position": initial_state.position,
+                    "velocity": initial_state.velocity,
+                    "orientation": make_valid_orientation(initial_state.orientation)
+                    if hasattr(initial_state, "orientation")
+                    else 0.0,
+                    "yaw_rate": 0.0,
+                    "lat_v": v_y,
+                    "slip_angle": slip_angle,
+                    "time_step": initial_state.time_step,
+                }
+            )
+
         else:
             self.initial_state = CustomState(
                 **{
@@ -213,12 +258,22 @@ class ContinuousVehicle(Vehicle):
         Class for vehicle when trained in continuous action space
     """
 
+    @property
+    def current_action(self) -> np.ndarray:
+        return self._action_list[-1]
+
+    @property
+    def action_history(self) -> List[np.ndarray]:
+        return self._action_list
+
     def __init__(self, params_dict: dict, continuous_collision_checking=True):
         """Initialize empty object"""
         super().__init__(params_dict)
         self.violate_friction = False
         self.jerk_bounds = np.array([-10000, 10000])
         self._continuous_collision_checking = continuous_collision_checking
+        # [np.array(steering angle, acceleration)]
+        self._action_list = [np.array([0.0, 0.0])]
 
         try:
             self.vehicle_dynamic = VehicleDynamics.from_model(self.vehicle_model, self.vehicle_type)
@@ -231,6 +286,8 @@ class ContinuousVehicle(Vehicle):
                 self.vehicle_dynamic = QPDynamics(self.vehicle_type)
             elif self.vehicle_model == VehicleModel.PMNonlinear:
                 self.vehicle_dynamic = PointMassNonlinearDynamics(self.vehicle_type)
+            elif self.vehicle_model == VehicleModel.STL:
+                self.vehicle_dynamic = SingleTrackLinearDynamics(self.vehicle_type)
             else:
                 raise ValueError(f"Unknown vehicle model: {self.vehicle_model}")
 
@@ -293,6 +350,9 @@ class ContinuousVehicle(Vehicle):
                 # update state
                 x_current = x_current + x_dot * (self.dt / N_INTEGRATION_STEPS)
 
+        # store the action
+        self._action_list.append(u_input)
+
         # feed in required slots
         if self.vehicle_model == VehicleModel.PM:
             kwarg = {
@@ -337,6 +397,13 @@ class ContinuousVehicle(Vehicle):
                 "yaw_rate": u_input[1],
                 "time_step": current_state.time_step + 1,
             }
+        elif self.vehicle_model == VehicleModel.ST:
+            state = self.vehicle_dynamic.array_to_state(x_current, current_state.time_step + 1)
+            state.orientation = make_valid_orientation(state.orientation)
+            return state
+        elif self.vehicle_model == VehicleModel.STL:
+            state = self.vehicle_dynamic.array_to_state(x_current, current_state.time_step + 1)
+            return state
 
         return CustomState(**kwarg)
 
@@ -350,6 +417,43 @@ class ContinuousVehicle(Vehicle):
         current_state = self.state
 
         return self.propagate_one_time_step(current_state, action, action_base)
+
+    def get_new_state_fix_step(self, action: np.ndarray, action_base: str) -> State:
+        """
+        Generate the next state from current state for the given action, but the time step of state is fixed.
+        :params action: rescaled action
+        :params action_base: aspect on which the action should be based ("jerk", "acceleration")
+        :return: next state of vehicle
+        """
+        current_state = self.state
+
+        if action_base == "acceleration":
+            u_input = action
+        elif action_base == "jerk":
+            u_input = self._jerk_to_acc(action)
+        else:
+            raise ValueError(f"Unknown action base: {action_base}")
+
+        x_current, _ = self.vehicle_dynamic.state_to_array(current_state)
+
+        try:
+            x_current_old = copy.deepcopy(x_current)
+            x_current = self.vehicle_dynamic.forward_simulation(x_current_old, u_input, self.dt, throw=True)
+            self.violate_friction = False
+        except FrictionCircleException:
+            self.violate_friction = True
+            for _ in range(N_INTEGRATION_STEPS):
+                # simulate state transition - t parameter is set to vehicle.dt but irrelevant for the current vehicle models
+                x_dot = np.array(self.vehicle_dynamic.dynamics(x=x_current, u=u_input, t=None, dt=None))
+                # update state
+                x_current = x_current + x_dot * (self.dt / N_INTEGRATION_STEPS)
+
+        # store the action
+        self._action_list.append(u_input)
+
+        state = self.vehicle_dynamic.array_to_state(x_current, current_state.time_step)
+
+        return state
 
     def _jerk_to_acc(self, action: np.ndarray) -> np.ndarray:
         """
@@ -366,17 +470,38 @@ class ContinuousVehicle(Vehicle):
                 ]
             )
             u_input = np.array(
-                [self.state.acceleration + action[0] * self.dt, self.state.acceleration_y + action[1] * self.dt]
+                [
+                    self.state.acceleration + action[0] * self.dt,
+                    self.state.acceleration_y + action[1] * self.dt,
+                ]
             )
 
         elif self.vehicle_model == VehicleModel.KS:
             # action[steering angel speed, jerk]
-            action = np.array([action[0], np.clip(action[1], self.jerk_bounds[0], self.jerk_bounds[1])])
+            action = np.array(
+                [
+                    action[0],
+                    np.clip(action[1], self.jerk_bounds[0], self.jerk_bounds[1]),
+                ]
+            )
             u_input = np.array([action[0], self.state.acceleration + action[1] * self.dt])
+        elif self.vehicle_model == VehicleModel.ST:
+            action = np.array(
+                [
+                    action[0],
+                    np.clip(action[1], self.jerk_bounds[0], self.jerk_bounds[1]),
+                ]
+            )
+            u_input = np.array([action[0], self._action_list[-1][1] + action[1] * self.dt])
 
         elif self.vehicle_model == VehicleModel.YawRate:
             # action[yaw, jerk]
-            action = np.array([action[0], np.clip(action[1], self.jerk_bounds[0], self.jerk_bounds[1])])
+            action = np.array(
+                [
+                    action[0],
+                    np.clip(action[1], self.jerk_bounds[0], self.jerk_bounds[1]),
+                ]
+            )
             u_input = np.array([action[0], self.state.acceleration + action[1] * self.dt])
         else:
             raise ValueError(f"Unknown vehicle model: {self.vehicle_model}")
@@ -450,7 +575,8 @@ class YawRateDynamics(VehicleDynamics):
         values = [
             state.position[0],
             state.position[1],
-            getattr(state, "steering_angle", steering_angle_default),  # not defined in initial state
+            # not defined in initial state
+            getattr(state, "steering_angle", steering_angle_default),
             state.velocity,
             state.orientation,
         ]
@@ -650,7 +776,10 @@ class QPDynamics(VehicleDynamics):
         x = np.array([x_init[:4], x_init[4:]])
         values = {
             "position": np.array(
-                [x[0, 0] + self.parameters.b * np.cos(x[1, 1]), x[1, 0] + self.parameters.b * np.sin(x[1, 1])]
+                [
+                    x[0, 0] + self.parameters.b * np.cos(x[1, 1]),
+                    x[1, 0] + self.parameters.b * np.sin(x[1, 1]),
+                ]
             ),
             "velocity": x[0, 1] / np.cos(x[1, 1] - self.theta_ref),
             "acceleration": x[0, 2],
@@ -724,13 +853,22 @@ class PointMassNonlinearDynamics(VehicleDynamics):
 
     def _state_to_array(self, state: State, steering_angle_default=0.0) -> Tuple[np.array, int]:
         """Implementation of the VehicleDynamics abstract method."""
-        values = [state.position[0], state.position[1], state.velocity, state.orientation]
+        values = [
+            state.position[0],
+            state.position[1],
+            state.velocity,
+            state.orientation,
+        ]
         time_step = state.time_step
         return np.array(values), time_step
 
     def _array_to_state(self, x: np.array, time_step: int) -> State:
         """Implementation of the VehicleDynamics abstract method."""
-        values = {"position": np.array([x[0], x[1]]), "velocity": x[2], "orientation": x[3]}
+        values = {
+            "position": np.array([x[0], x[1]]),
+            "velocity": x[2],
+            "orientation": x[3],
+        }
         return CustomState(**values, time_step=time_step)
 
     def _input_to_array(self, input: State) -> Tuple[np.array, int]:
@@ -764,6 +902,116 @@ class PointMassNonlinearDynamics(VehicleDynamics):
         V = np.dot(R, V) + np.reshape(x[0:2], (2, 1))
 
         return V
+
+
+class SingleTrackLinearDynamics(VehicleDynamics):
+    def __init__(self, vehicle_type: VehicleType):
+        super(SingleTrackLinearDynamics, self).__init__(VehicleModel.STL, vehicle_type)
+        self._l_f = self.parameters.a
+        self._l_r = self.parameters.b
+        self._I_z = self.parameters.I_z
+        self._p_ky_1 = self.parameters.tire.p_ky1
+        self._m = self.parameters.m
+        self._g = 9.81  # m/s^2
+        self._hcg = self.parameters.h_cg
+
+    def dynamics(self, t, x: np.array, u, dt) -> List[float]:
+        # [x, y, yaw, v, lat_v, slip_angle, yaw_rate]
+        # u: [steering angle, acceleration]
+        v = x[3]
+        slip_angle = x[5]
+        lat_v = x[4]
+        lon_v = x[3] * math.cos(slip_angle)
+        yaw = x[2]
+        yaw_rate = x[6]
+        angle = make_valid_orientation(slip_angle + yaw)
+        f_z_f = self._m * (self._g * self._l_r - u[1] * self._hcg) / (self._l_f + self._l_r)
+        f_z_r = self._m * (self._g * self._l_f + u[1] * self._hcg) / (self._l_f + self._l_r)
+        c_f = self._p_ky_1 * f_z_f
+        c_r = self._p_ky_1 * f_z_r
+        f = [
+            v * math.cos(angle),
+            v * math.sin(angle),
+            yaw_rate,
+            u[1],
+            ((c_f + c_r) / self._m * lon_v) * lat_v
+            + (-lon_v + (c_f * self._l_f - c_r * self._l_r) / (self._m * lon_v)) * yaw_rate
+            - c_f / self._m * u[0],
+            -yaw_rate
+            - c_f / (self._m * lon_v) * (u[0] - slip_angle - self._l_f * yaw_rate / lon_v)
+            - c_r / (self._m * lon_v) * (-slip_angle + self._l_r * yaw_rate / lon_v),
+            (self._l_f * c_f - self._l_r * c_r) / (self._I_z * lon_v) * lat_v
+            + (self._l_f * self._l_f * c_f + self._l_r * self._l_r * c_r) / (self._I_z * lon_v) * yaw_rate
+            - (self._l_f * c_f / self._I_z) * u[0],
+        ]
+        return f
+
+    def forward_simulation(self, x: np.array, u_init: np.array, dt: float, throw: bool = True) -> np.array:
+        """
+        Simulates the next state using the given state and input values as numpy arrays.
+
+        :param x: state values.
+        :param u: input values
+        :param dt: scenario delta time.
+        :param throw: if set to false, will return None as next state instead of throwing exception (default=True)
+        :return: simulated next state values, raises VehicleDynamicsException if invalid input.
+        """
+
+        x0, x1 = odeint(
+            self.dynamics,
+            x,
+            [0.0, dt],
+            args=(
+                u_init,
+                dt,
+            ),
+            tfirst=True,
+        )
+        # x1 = self.dynamics(None, x, u_init, dt)
+
+        return x1
+
+    def _array_to_state(self, x: np.array, time_step: int) -> State:
+        values = {
+            "position": np.array([x[0], x[1]]),
+            "orientation": make_valid_orientation(x[2]),
+            "velocity": x[3],
+            "lat_v": x[4],
+            "slip_angle": make_valid_orientation(x[5]),
+            "yaw_rate": x[6],
+        }
+        state = CustomState(**values, time_step=time_step)
+        return state
+
+    def _state_to_array(self, state: State, steering_angle_default=0.0) -> Tuple[np.array, int]:
+        # [x, y, yaw, v, lat_v, slip_angle, yaw_rate]
+        values = [
+            state.position[0],
+            state.position[1],
+            state.orientation,
+            state.velocity,
+            state.lat_v,
+            state.slip_angle,
+            state.yaw_rate,
+        ]
+        time_step = state.time_step
+        return np.array(values), time_step
+
+    def _input_to_array(self, input: State) -> Tuple[np.array, int]:
+        values = [
+            input.steering_angle,
+            input.acceleration,
+        ]
+        time_step = input.time_step
+        return np.array(values), time_step
+
+    def _array_to_input(self, u: np.array, time_step: int) -> State:
+        """Overrides VehicleDynamics method."""
+        values = {
+            "steering_angle": u[0],
+            "acceleration": u[1],
+        }
+        return CustomState(**values, time_step=time_step)
 
 
 if __name__ == "__main__":

@@ -66,7 +66,8 @@ class Termination:
                 done = True
                 termination_reason = "is_time_out"
 
-        elif observation["is_friction_violation"][0]:  # Friction limitation is violated
+        # Friction limitation is violated
+        elif "is_friction_violation" in observation.keys() and observation["is_friction_violation"][0]:
             self.num_friction_violation += 1
             termination_info["is_friction_violation"] = 1
             termination_info["num_friction_violation"] = self.num_friction_violation

@@ -1,10 +1,20 @@
 """
 Module containing the action base class
 """
-import gym
+from commonroad_route_planner.route import Route
+import gymnasium as gym
 from typing import Union
+import logging
 from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
 from commonroad_rl.gym_commonroad.action.vehicle import *
+from commonroad_rl.gym_commonroad.action.planner import (
+    PolynomialPlanner,
+    RLReactivePlanner,
+)
+from commonroad_rl.gym_commonroad.action.controller import Controller
+from commonroad_rl.gym_commonroad.utils.navigator import Navigator
+from commonroad_rp.utility.utils_coordinate_system import CoordinateSystem
+from commonroad_rp.utility.config import ReactivePlannerConfiguration
 
 
 def _rotate_to_curvi(vector: np.ndarray, local_ccosy: CurvilinearCoordinateSystem, pos: np.ndarray) -> np.ndarray:
@@ -38,7 +48,11 @@ class Action(ABC):
         self.vehicle = None
 
     @abstractmethod
-    def step(self, action: Union[np.ndarray, int], local_ccosy: CurvilinearCoordinateSystem = None) -> None:
+    def step(
+        self,
+        action: Union[np.ndarray, int],
+        local_ccosy: CurvilinearCoordinateSystem = None,
+    ) -> None:
         """
         Function which acts on the current state and generates the new state
         :param action: current action
@@ -78,7 +92,11 @@ class DiscreteAction(Action):
         """
         self.vehicle.reset(initial_state, dt)
 
-    def step(self, action: Union[np.ndarray, int], local_ccosy: CurvilinearCoordinateSystem = None) -> None:
+    def step(
+        self,
+        action: Union[np.ndarray, int],
+        local_ccosy: CurvilinearCoordinateSystem = None,
+    ) -> None:
         """
         Function which acts on the current state and generates the new state
 
@@ -254,13 +272,15 @@ class ContinuousAction(Action):
             self._rescale_factor = np.array([(yaw_rate_max - yaw_rate_min) / 2.0, a_max])
             self._rescale_bias = np.array([0.0, 0.0])
         elif self.vehicle.vehicle_model == VehicleModel.QP:
-            ub, lb = self.vehicle.vehicle_dynamic.input_bounds.ub, self.vehicle.vehicle_dynamic.input_bounds.lb
+            ub, lb = (
+                self.vehicle.vehicle_dynamic.input_bounds.ub,
+                self.vehicle.vehicle_dynamic.input_bounds.lb,
+            )
             self._rescale_factor = (ub - lb) / 2
             self._rescale_bias = (ub + lb) / 2
         elif self.vehicle.vehicle_model == VehicleModel.PMNonlinear:
-            self._rescale_factor = np.array(
-                [a_max, 2.0]
-            )  # TODO: check with Niklas which bounds are used in the reachable sets
+            # TODO: check with Niklas which bounds are used in the reachable sets
+            self._rescale_factor = np.array([a_max, 2.0])
             self._rescale_bias = np.array([0.0, 0.0])
         else:
             raise ValueError(
@@ -271,7 +291,11 @@ class ContinuousAction(Action):
         self.vehicle.reset(initial_state, dt)
         self._set_rescale_factors()
 
-    def step(self, action: Union[np.ndarray, int], local_ccosy: CurvilinearCoordinateSystem = None) -> None:
+    def step(
+        self,
+        action: Union[np.ndarray, int],
+        local_ccosy: CurvilinearCoordinateSystem = None,
+    ) -> None:
         """
         Function which acts on the current state and generates the new state
 
@@ -299,6 +323,134 @@ class ContinuousAction(Action):
         return self._rescale_factor * action + self._rescale_bias
 
 
+class ParameterAction(ContinuousAction):
+    """
+    Description:
+        Module for continuous action space; actions correspond to polynomial function parameters
+    """
+
+    @property
+    def matched_state(self):
+        return self._last_matched_state
+
+    @property
+    def current_trajectory(self):
+        if self.trajectory_history.__len__() == 0:
+            return None
+        return self.trajectory_history[-1]
+
+    def __init__(self, params_dict: dict, action_dict: dict):
+        """Initialize object"""
+        # create vehicle object
+        self.params_range = action_dict["parameters_range"]
+        self.action_base = action_dict["action_base"]
+        self._continous_collision_check = action_dict.get("continuous_collision_checking", True)
+        self.vehicle = ContinuousVehicle(params_dict, continuous_collision_checking=self._continous_collision_check)
+        self.trajectory_history = []
+        self.planner = PolynomialPlanner(self.vehicle.parameters)
+        self.controller = Controller(
+            config=action_dict["control_config"],
+            vehicle_parameters=self.vehicle.parameters,
+            control_frequency=action_dict["control_frequency"],
+        )
+        self._scenario_dt = 0.1  # s
+        self._last_matched_state = None
+
+    def reset(
+        self,
+        initial_state: State,
+        dt: float,
+        local_ccosy: CurvilinearCoordinateSystem = None,
+    ) -> None:
+        # self.vehicle.reset(initial_state, self.controller.control_dt)
+        self._scenario_dt = dt
+        self._set_rescale_factors()
+        self.planner.reset(self.params_range["max_plan_time"], self._scenario_dt, local_ccosy)
+        self._last_matched_state = None
+        self.trajectory_history.clear()
+
+    def _set_rescale_factors(self):
+        max_plan_time = self.params_range["max_plan_time"]
+        min_lat_time = 1.0
+        max_long_v = self.params_range["max_long_v"]
+        min_long_v = self.params_range["min_long_v"]
+        max_lat_dis = self.params_range["max_lat_dis"]
+        min_lat_dis = -max_lat_dis
+
+        self._rescale_factor = np.array(
+            [
+                (max_long_v - min_long_v) / 2.0,
+                (max_lat_dis - min_lat_dis) / 2.0,
+                # (max_plan_time - min_lat_time) / 2.0,
+            ]
+        )
+
+        self._rescale_bias = np.array(
+            [
+                (max_long_v + min_long_v) / 2.0,
+                (max_lat_dis + min_lat_dis) / 2.0,
+                # (max_plan_time + min_lat_time) / 2.0,
+            ]
+        )
+
+    def step(
+        self,
+        action: Union[np.ndarray, int],
+        logger: logging.Logger = None,
+    ) -> None:
+        """
+        Function which acts on the current state and generates the new state
+
+        :param action: current action
+        :param local_ccosy: Current curvilinear coordinate system
+        :return: New state of ego vehicle
+        """
+        rescaled_action = self.rescale_action(action)
+        # coordinate_system = CoordinateSystem(
+        #     reference=navigator.route.reference_path, ccosy=local_ccosy)
+
+        plan_trajectory = self.planner.PlanTraj(vehicle=self.vehicle, rescaled_action=rescaled_action, logger=logger)
+
+        # plan_trajectory = self.planner.ReferenceTraj(navigator=navigator)
+
+        # planning trajectory
+
+        trajectory = plan_trajectory
+        if plan_trajectory is not None:
+            self.trajectory_history.append(plan_trajectory)
+        else:
+            return True
+        # update vehicle state
+        t_step = 0
+        while t_step < self._scenario_dt:
+            # match trajectory
+            matched_state = self.controller.match_trajectory(self.vehicle.state, trajectory, t_step)
+            # logger.debug(
+            #     f'matched_state: vecl is {matched_state.velocity}'
+            # )
+            # compute control input
+            control_input = self.controller.compute_control_input(self.vehicle.state, matched_state)
+            # logger.debug(
+            #     f'control_input: acc is {control_input[1]}, steer_angle is {control_input[0]}')
+            # update vehicle state
+            new_state = self.vehicle.get_new_state_fix_step(control_input, self.action_base)
+            self.vehicle.set_current_state(new_state)
+            t_step += self.controller.control_dt
+
+        # NOTE: we use fix step, therefore, we need to plus one
+        self.vehicle.state.time_step += 1
+
+        self._last_matched_state = matched_state
+        if self.vehicle.state.has_value("slip_angle"):
+            logger.debug(
+                f"slip_angle is {self.vehicle.state.slip_angle}, yaw rate is {self.vehicle.state.yaw_rate}, orientation is {self.vehicle.state.orientation}"
+            )
+        else:
+            logger.debug(f"orientation is {self.vehicle.state.orientation}, yaw rate is {self.vehicle.state.yaw_rate}")
+
+        return False
+
+
 def action_constructor(
     action_configs: dict, vehicle_params: dict
 ) -> Tuple[Action, Union[gym.spaces.Box, gym.spaces.MultiDiscrete]]:
@@ -314,6 +466,8 @@ def action_constructor(
                 f"action_base {action_configs['action_base']} not supported. " f"Please choose acceleration or jerk"
             )
         action = action(vehicle_params, action_configs["long_steps"], action_configs["lat_steps"])
+    elif action_configs["action_type"] == "parameters":
+        action = ParameterAction(vehicle_params, action_configs)
     else:
         raise NotImplementedError(
             f"action_type {action_configs['action_type']} not supported. " f"Please choose continuous or discrete"
@@ -323,7 +477,10 @@ def action_constructor(
         # TODO initialize action space with class
     if action_configs["action_type"] == "continuous":
         action_high = np.array([1.0, 1.0])
-        action_space = gym.spaces.Box(low=-action_high, high=action_high, dtype="float32")
+        action_space = gym.spaces.Box(low=-action_high, high=action_high, dtype=np.float32)
+    elif action_configs["action_type"] == "parameters":
+        action_high = np.array([1.0, 1.0])
+        action_space = gym.spaces.Box(low=-action_high, high=action_high, dtype=np.float32)
     else:
         action_space = gym.spaces.MultiDiscrete([action_configs["long_steps"], action_configs["lat_steps"]])
 

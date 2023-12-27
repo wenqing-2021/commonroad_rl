@@ -2,7 +2,7 @@ import warnings
 from collections import OrderedDict
 from typing import Union, Dict, List, Tuple
 
-import gym
+import gymnasium as gym
 import numpy as np
 from commonroad.geometry.shape import ShapeGroup, Shape
 from commonroad.planning.goal import GoalRegion

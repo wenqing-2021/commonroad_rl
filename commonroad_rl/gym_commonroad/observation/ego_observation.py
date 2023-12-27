@@ -4,7 +4,7 @@ Module EgoObservation
 from collections import defaultdict, OrderedDict
 from typing import Union, Dict
 
-import gym
+import gymnasium as gym
 import yaml
 import numpy as np
 from commonroad.common.solution import VehicleModel
@@ -96,6 +96,8 @@ class EgoObservation(Observation):
         if self.observe_a_ego:
             if ego_vehicle.vehicle_model == VehicleModel.PM:
                 self.observation_dict["a_ego"] = np.array([ego_state.acceleration, ego_state.acceleration_y])
+            elif ego_vehicle.vehicle_model == VehicleModel.STL:
+                self.observation_dict["a_ego"] = np.array(ego_vehicle.current_action[1])
             else:
                 self.observation_dict["a_ego"] = np.array([ego_state.acceleration])
 
@@ -103,7 +105,10 @@ class EgoObservation(Observation):
             self.observation_dict["jerk_ego"] = np.array([ego_state.jerk])
 
         if self.observe_steering_angle:
-            self.observation_dict["steering_angle"] = np.array([ego_state.steering_angle])
+            if ego_vehicle.vehicle_model == VehicleModel.STL:
+                self.observation_dict["steering_angle"] = np.array(ego_vehicle.current_action[0])
+            else:
+                self.observation_dict["steering_angle"] = np.array([ego_state.steering_angle])
 
         if self.observe_relative_heading:
             relative_heading = EgoObservation.get_lane_relative_heading(ego_state, ego_lanelet)
