@@ -1,5 +1,7 @@
 # CommonRoad-RL
 
+**note**: i fork this repo from [commonroad-rl](https://gitlab.lrz.de/tum-cps/commonroad-rl) and make some changes to make it work on my computer.
+
 This repository contains a software package to solve motion planning problems on [CommonRoad](https://commonroad.in.tum.de) using Reinforcement Learning algorithms. We currently use the implementation for the RL algorithms from [OpenAI Stable Baselines](https://stable-baselines.readthedocs.io/en/master/), but the package can be run with any standard (OpenAI Gym compatible) RL implementations.
 
 ## CommonRoad-RL in a nutshell
