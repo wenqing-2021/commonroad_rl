@@ -6,7 +6,7 @@ import os
 import pickle
 import multiprocessing
 
-import gym
+import gymnasium as gym
 from commonroad.common.file_writer import CommonRoadFileWriter, OverwriteExistingFile
 from commonroad.geometry.shape import Rectangle
 from commonroad.planning.planning_problem import PlanningProblemSet

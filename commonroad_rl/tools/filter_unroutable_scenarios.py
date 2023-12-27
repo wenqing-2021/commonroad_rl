@@ -31,9 +31,16 @@ LOGGER.addHandler(handler)
 def get_args():
     """Scan arguments"""
     parser = argparse.ArgumentParser(
-        description="Filters out non-routable scenarios", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="Filters out non-routable scenarios",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("--pickles", "-i", help="Path to problems", type=str, default=constants.PATH_PARAMS["pickles"])
+    parser.add_argument(
+        "--pickles",
+        "-i",
+        help="Path to problems",
+        type=str,
+        default=constants.PATH_PARAMS["pickles"],
+    )
     parser.add_argument(
         "--output",
         "-o",
@@ -54,7 +61,7 @@ def main(pickles: str, output: str) -> None:
     problem = os.path.join(pickles, "problem")
     meta_scenario_path = os.path.join(pickles, "meta_scenario")
 
-    with open(os.path.join(meta_scenario_path, "problem_meta_scenario_dict.pickle"), "rb") as f:
+    with open(os.path.join(meta_scenario_path, "meta_scenario_reset_dict.pickle"), "rb") as f:
         problem_meta_scenario_dict = pickle.load(f)
 
     for file in os.listdir(problem):
@@ -64,16 +71,17 @@ def main(pickles: str, output: str) -> None:
         with open(os.path.join(problem, file), "rb") as f:
             problem_dict: dict = pickle.load(f)
 
-        planning_problem: PlanningProblem = list(problem_dict["planning_problem_set"].planning_problem_dict.values())[0]
-        benchmark_id = os.path.splitext(file)[0]
-        meta_scenario = problem_meta_scenario_dict[benchmark_id]
-        scenario = restore_scenario(meta_scenario, problem_dict["obstacle"])
+        all_planning_problems = list(problem_dict["planning_problem_set"].planning_problem_dict.values())
+        for planning_problem in all_planning_problems:
+            benchmark_id = os.path.splitext(file)[0]
+            meta_scenario = problem_meta_scenario_dict[benchmark_id]
+            scenario = restore_scenario(meta_scenario, problem_dict["obstacle"])
 
-        rp = RoutePlanner(scenario, planning_problem)
-        routes = rp.plan_routes()
+            rp = RoutePlanner(scenario, planning_problem)
+            routes = rp.plan_routes()
 
-        if routes.num_route_candidates == 0:
-            os.rename(os.path.join(problem, file), os.path.join(output, file))
+            if routes.num_route_candidates == 0:
+                os.rename(os.path.join(problem, file), os.path.join(output, file))
 
 
 if __name__ == "__main__":

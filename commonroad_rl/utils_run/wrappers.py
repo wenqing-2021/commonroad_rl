@@ -1,6 +1,6 @@
-import gym
+import gymnasium as gym
 import numpy as np
-from gym.wrappers import TimeLimit
+from gymnasium.wrappers.time_limit import TimeLimit
 
 
 class DoneOnSuccessWrapper(gym.Wrapper):
