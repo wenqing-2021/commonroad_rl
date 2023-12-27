@@ -1,7 +1,7 @@
 from collections import defaultdict, OrderedDict
 from typing import Union, Dict, List, Tuple
 
-import gym
+import gymnasium as gym
 import numpy as np
 from commonroad.scenario.lanelet import Lanelet
 from commonroad.scenario.scenario import Scenario

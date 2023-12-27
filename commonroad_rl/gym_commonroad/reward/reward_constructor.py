@@ -3,10 +3,12 @@ problems """
 from commonroad_rl.gym_commonroad.reward.hybrid_reward import HybridReward
 from commonroad_rl.gym_commonroad.reward.reward import Reward
 from commonroad_rl.gym_commonroad.reward.sparse_reward import SparseReward
+from commonroad_rl.gym_commonroad.reward.param_reward import ParamReward
 
 reward_type_to_class = {
     "sparse_reward": SparseReward,
     "hybrid_reward": HybridReward,
+    "param_reward": ParamReward,
 }
 
 

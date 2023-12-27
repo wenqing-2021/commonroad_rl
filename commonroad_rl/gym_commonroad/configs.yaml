@@ -4,16 +4,34 @@ env_configs:
   # vehicle model and types
   vehicle_params:
     vehicle_type: 2  # 1: FORD_ESCORT; 2: BMW_320i; 3: VW_VANAGON
-    vehicle_model: 6  # 0: PM, 1: ST, 2: KS, 3: MB, 4: KST, 5: YawRate, 6: QP, 7: PMNonlinear (1,3,4 are not implemented)
+    vehicle_model: 8  # 0: PM, 1: ST, 2: KS, 3: MB, 4: KST, 5: YawRate, 6: QP, 7: PMNonlinear, 8: STL (1,3,4 are not implemented)
 
   # action configuration
   action_configs:
-    action_type: continuous # discrete
+    action_type: parameters # discrete # continuous # parameters
     action_base: acceleration # acceleration; jerk (For ContinuousAction)
     long_steps: 5
     lat_steps: 5
-    planning_horizon: 1. # unit [s]
-    continuous_collision_checking: False # True # TODO: SUMO scenarios do not support continuous collision check
+    planning_horizon: 1. # unit [s] not use
+    continuous_collision_checking: True # True # TODO: SUMO scenarios do not support continuous collision check
+    # For parameters action (polynomial function trajectory)
+    parameters_range:
+      max_plan_time: 1.5 # unit [s]
+      max_long_v: 5.0 # unit [m/s]
+      min_long_v: -5.0 # unit [m/s]
+      max_lat_dis: 3.0 # unit [m]
+    control_frequency: 50 # hz
+    control_config:
+      lateral_controller: lqr # lqr # stanley
+      scale_q: 1
+      scale_r: 10
+      ricatti_iter: 100
+      pid_a_kp: 20.0
+      pid_a_kd: 0.0
+      pid_v_kp: 0.0
+      pid_v_kd: 0.0
+      stanley_k: 0.5
+    
 
   # Flatten observation into a vector for NN input
   flatten_observation: True
@@ -22,7 +40,7 @@ env_configs:
   max_lane_merge_range: 5000.
 
   # performance
-  cache_navigators: False # use for large scenarios like Hhr
+  cache_navigators: True # use for large scenarios like Hhr
 
   # Evaluate collision type during training
   check_collision_type: False
@@ -32,14 +50,14 @@ env_configs:
   ego_configs:
     observe_v_ego: True
     observe_a_ego: True
-    observe_jerk_ego: True # jerk for QP vehicle model
+    observe_jerk_ego: False # jerk for QP vehicle model
     observe_relative_heading: True
-    observe_steering_angle: False
-    observe_global_turn_rate: True # yaw_rate; kappa_dot for QP vehicle model
-    observe_slip_angle: True # kappa for QP vehicle model
-    observe_remaining_steps: True
+    observe_steering_angle: True
+    observe_global_turn_rate: False # yaw_rate; kappa_dot for QP vehicle model
+    observe_slip_angle: False # kappa for QP vehicle model
+    observe_remaining_steps: False
     # Termination-related observation flags and settings
-    observe_is_friction_violation: True
+    observe_is_friction_violation: False
 
   lanelet_configs:
     # off road check settings
@@ -59,11 +77,11 @@ env_configs:
     observe_dynamic_extrapolated_positions: False
     dynamic_extrapolation_samples: [ 0.1, 0.25, 1, 2 ]
     # Navigator Route Observations:
-    observe_route_reference_path: True
+    observe_route_reference_path: False
     distances_route_reference_path: [-1000, 0, 5, 15, 100]
     observe_route_multilanelet_waypoints: False
     distances_and_ids_multilanelet_waypoints: [[-1000, 0, 1000], [0, 1]]
-    observe_distance_togoal_via_referencepath: True
+    observe_distance_togoal_via_referencepath: False
           
 
   # Goal-related observation flags and settings
@@ -72,10 +90,11 @@ env_configs:
     # TODO: remove after other goal observations (velocity interval and orientation interval) are implemented
     relax_is_goal_reached: True
     # goal observations
+    enlarge_goal: True # False. Enlarge 1.5 times the width and length of the goal rectangle.
     observe_distance_goal_long: True
     observe_distance_goal_lat: True
     observe_distance_goal_long_lane: False
-    observe_distance_goal_time: True
+    observe_distance_goal_time: False
     observe_distance_goal_orientation: False #True #False
     observe_distance_goal_velocity: False #False
     observe_euclidean_distance: False
@@ -91,7 +110,7 @@ env_configs:
     dummy_dist: 500.
     dummy_dist_intersection: 50.
     observe_is_collision: True
-    observe_lane_change: True
+    observe_lane_change: False
     observe_vehicle_type: False
     observe_vehicle_lights: False
 
@@ -105,7 +124,7 @@ env_configs:
 
     # Circular
     observe_lane_circ_surrounding: True
-    lane_circ_sensor_range_radius: 500.
+    lane_circ_sensor_range_radius: 100.
 
     # Traffic rule related:
     observe_relative_priority: False
@@ -133,7 +152,7 @@ env_configs:
     # whether to colorize detected surrounding obstacles in
     # (lane-based rectangle, lane-based circle, lidar-based) detection methods
     render_surrounding_obstacles_lane_based: True
-    render_lidar_circle_surrounding_obstacles: True
+    render_lidar_circle_surrounding_obstacles: False
     # whether to render the sensing area/lidar beams in the three detection methods
     render_surrounding_area: False
     render_lidar_circle_surrounding_beams: False
@@ -151,7 +170,8 @@ env_configs:
     render_follow_ego: False
     render_range: [100., 15.]
 
-  reward_type: hybrid_reward # hybrid_reward # p: sparse_reward
+  reward_type: param_reward # hybrid_reward # p: sparse_reward # p: param_reward
+  cost_type: sparse_cost
   # Reward settings
 
   # HYBRID REWARD
@@ -202,6 +222,32 @@ env_configs:
       reward_off_road: -50.
       reward_time_out: -10.
       reward_friction_violation: 0.
+
+    param_reward:
+      infeasible_reward: -1000.
+      comfortable:
+        jerk_reward_scale: 2.5
+        kappa_reward_scale: 5.0
+        lat_acc_reward_scale: 0.5
+        omega_reward_scale: 0.0 # yaw_rate
+        reference_offset_reward_scale: 0.5
+        max_allowable_reference_offset: 0.0
+      efficiency:
+        velocity_reward_scale: 0.
+        reward_time_step: -5.
+      goal_reach:
+        reward_goal_reached: 2000
+        goal_long_advance_reward_scale: 50 # advance means the delta dis between current and last step
+        goal_lat_advance_reward_scale: 50
+
+  cost_configs:
+    use_cost: True
+    sparse_cost:
+      cost_collision: 500.
+      cost_off_road: 500.
+      cost_time_out: 10.
+      tts_threshold: 1.5
+      cost_ttc: 0.0
 
   termination_configs:
     # TERMINATIONS

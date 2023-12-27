@@ -16,7 +16,8 @@ from commonroad_route_planner.route import Route
 import commonroad_dc.pycrccosy as pycrccosy
 from commonroad_dc.geometry.util import resample_polyline, compute_polyline_length
 import commonroad.geometry.shape as cr_shape
-from shapely.geos import LOG
+
+# from shapely.geos import LOG
 from shapely.ops import unary_union
 from shapely.geometry import Polygon
 

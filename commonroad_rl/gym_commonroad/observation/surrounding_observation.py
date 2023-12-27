@@ -2,7 +2,7 @@ from collections import OrderedDict
 from typing import Union, Dict, List, Tuple, Set, Optional
 
 import commonroad_dc.pycrcc as pycrcc
-import gym
+import gymnasium as gym
 import numpy as np
 from commonroad.common.util import make_valid_orientation
 from commonroad.geometry.shape import Polygon, Rectangle
@@ -349,9 +349,8 @@ class SurroundingObservation(Observation):
             self._get_vehicle_lights(detected_obstacles)
 
         # add self.conflict_obstacles_information
-        detected_states_exclude = [
-            state for state in detected_states if state is not None
-        ]  # TODO: remove after released cr-io
+        # TODO: remove after released cr-io
+        detected_states_exclude = [state for state in detected_states if state is not None]
         self.conflict_obstacles_information = [
             state for state in obstacle_states if state not in detected_states_exclude
         ]
