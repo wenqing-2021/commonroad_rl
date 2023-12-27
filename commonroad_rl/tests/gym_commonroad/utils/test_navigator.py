@@ -32,9 +32,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -72,9 +70,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -91,7 +87,7 @@ dummy_time_step = Interval(0.0, 0.0)
             ),
             Navigator.CosyVehicleObservation.VEHICLEFRAME,
             [-100, -0.5, 0, 0.5, 5, 20, 100],
-            - np.array(  # negative
+            -np.array(  # negative
                 [
                     [-1, 0.0],
                     [-0.5, 0.0],
@@ -111,9 +107,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -150,9 +144,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 9.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 9.0])),
                     )
                 ]
             ),
@@ -180,17 +172,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     [19, 9],
                 ]
             ),
-            np.array(
-                [
-                    0,
-                    0,
-                    0.02506,
-                    0.10440457,
-                    0.87605805,
-                    0.29145679,
-                    0.29145679
-                ]
-            ),
+            np.array([0, 0, 0.02506, 0.10440457, 0.87605805, 0.29145679, 0.29145679]),
         ),
         # fifth to test the coordinate convertion from rotation matrix
         (
@@ -199,9 +181,7 @@ dummy_time_step = Interval(0.0, 0.0)
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -210,18 +190,16 @@ dummy_time_step = Interval(0.0, 0.0)
                     "time_step": 1,
                     "yaw_rate": 0.0,
                     "slip_angle": 0.0,
-                    "orientation": np.pi/2,
+                    "orientation": np.pi / 2,
                     "position": np.array([1.0, 0.0]),
                     "velocity": 0.01,
                     "velocity_y": 0.0,
                 }
             ),
-            
             Navigator.CosyVehicleObservation.VEHICLEFRAME,
             [-100, -0.5, 0, 0.5, 5, 20, 100],
             np.array(
                 [
-                
                     [0.0, 1],
                     [0.0, 0.5],
                     [0.0, 0.0],
@@ -229,14 +207,9 @@ dummy_time_step = Interval(0.0, 0.0)
                     [0.0, -5],
                     [0.0, -19],
                     [0.0, -19],
-                    
                 ]
             ),
-            np.array(
-                [
-                    -np.pi/2,-np.pi/2,-np.pi/2,-np.pi/2,-np.pi/2,-np.pi/2,-np.pi/2
-                ]
-            ),
+            np.array([-np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2, -np.pi / 2]),
         ),
     ],
 )
@@ -262,12 +235,8 @@ def test_get_waypoints_of_reference_path(
     print(help_allclose(expected_orientations, orients))
 
     # observation = GoalObservation(configs)
-    help_allclose(
-        expected_waypoints, pos, what="positions of the waypoints points"
-    )
-    help_allclose(
-        expected_orientations, orients, what="orientations of the waypoints points"
-    )
+    help_allclose(expected_waypoints, pos, what="positions of the waypoints points")
+    help_allclose(expected_orientations, orients, what="orientations of the waypoints points")
 
 
 @pytest.mark.parametrize(
@@ -287,9 +256,7 @@ def test_get_waypoints_of_reference_path(
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -342,9 +309,7 @@ def test_get_waypoints_of_reference_path(
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -397,9 +362,7 @@ def test_get_waypoints_of_reference_path(
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -452,9 +415,7 @@ def test_get_waypoints_of_reference_path(
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 9.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 9.0])),
                     )
                 ]
             ),
@@ -525,22 +486,12 @@ def test_get_referencepath_multilanelets_waypoints(
     )
 
     # observation = GoalObservation(configs)
-    help_allclose(
-        expected_waypoints, pos, what="positions of the waypoints points"
-    )
-    help_allclose(
-        expected_orientations, orients, what="orientations of the waypoints paths"
-    )
+    help_allclose(expected_waypoints, pos, what="positions of the waypoints points")
+    help_allclose(expected_orientations, orients, what="orientations of the waypoints paths")
 
 
 @pytest.mark.parametrize(
-    (
-        "goal_region",
-        "ego_state",
-        "expected_distance_lat", 
-        "expected_distance_to_goal_long_on_ref",
-        "expected_indomain"
-    ),
+    ("goal_region", "ego_state", "expected_distance_lat", "expected_distance_to_goal_long_on_ref", "expected_indomain"),
     [
         # first
         (
@@ -549,9 +500,7 @@ def test_get_referencepath_multilanelets_waypoints(
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -577,9 +526,7 @@ def test_get_referencepath_multilanelets_waypoints(
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -605,9 +552,7 @@ def test_get_referencepath_multilanelets_waypoints(
                     CustomState(
                         time_step=Interval(1, 1),
                         orientation=AngleInterval(-np.pi / 2, np.pi / 2),
-                        position=Rectangle(
-                            length=2.0, width=2.0, center=np.array([20.0, 0.0])
-                        ),
+                        position=Rectangle(length=2.0, width=2.0, center=np.array([20.0, 0.0])),
                     )
                 ]
             ),
@@ -692,7 +637,7 @@ def test_get_longlat_togoal_on_reference_path(
     goal_region: GoalRegion,
     expected_distance_lat: np.ndarray,
     expected_distance_to_goal_long_on_ref: np.ndarray,
-    expected_indomain
+    expected_indomain,
 ):
     """unittest for Navigator.get_referencepath_multilanelets_waypoints method"""
 
@@ -704,16 +649,12 @@ def test_get_longlat_togoal_on_reference_path(
     )
 
     # observation = GoalObservation(configs)
-    help_allclose(
-        expected_distance_lat, distance_lat, what="(lat) distance"
-    )
+    help_allclose(expected_distance_lat, distance_lat, what="(lat) distance")
     help_allclose(
         expected_distance_to_goal_long_on_ref, min_distance_to_goal_long_on_ref, what="(longitudinal) distance"
     )
 
-    help_allclose(
-        indomain, expected_indomain, atol=1e-02, what="indomain"
-    )
+    help_allclose(indomain, expected_indomain, atol=1e-02, what="indomain")
 
 
 def help_allclose(a, b, what="", rtol=1e-03, atol=1e-05):
@@ -738,9 +679,7 @@ def helper_dummy_scenario(goal_region):
         }
     )
 
-    planning_problem = PlanningProblem(
-        planning_problem_id=0, initial_state=initial_st, goal_region=goal_region
-    )
+    planning_problem = PlanningProblem(planning_problem_id=0, initial_state=initial_st, goal_region=goal_region)
 
     lanelet0 = Lanelet(
         lanelet_id=0,
@@ -785,9 +724,7 @@ def helper_dummy_scenario(goal_region):
     scenario.lanelet_network.add_lanelet(lanelet1)
     scenario.lanelet_network.add_lanelet(lanelet2)
 
-    route_planner = RoutePlanner(
-        scenario, planning_problem, backend=RoutePlanner.Backend.NETWORKX_REVERSED
-    )
+    route_planner = RoutePlanner(scenario, planning_problem, backend=RoutePlanner.Backend.NETWORKX_REVERSED)
 
     candidate_holder = route_planner.plan_routes()
     route = candidate_holder.retrieve_first_route()

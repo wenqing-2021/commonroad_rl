@@ -20,24 +20,24 @@ LOGGER = logging.getLogger(__name__)
 
 
 def optimize_observation_configs(
-        algo,
-        env_id,
-        model_fn,
-        env_fn,
-        sampling_setting,
-        n_timesteps=5000,
-        eval_freq=1000,
-        n_eval_episodes=5,
-        n_trials=10,
-        hyperparams=None,
-        configs=None,
-        n_jobs=1,
-        sampler_method="random",
-        pruner_method="halving",
-        seed=13,
-        verbose=1,
-        log_path=None,
-        best_model_save_path=None,
+    algo,
+    env_id,
+    model_fn,
+    env_fn,
+    sampling_setting,
+    n_timesteps=5000,
+    eval_freq=1000,
+    n_eval_episodes=5,
+    n_trials=10,
+    hyperparams=None,
+    configs=None,
+    n_jobs=1,
+    sampler_method="random",
+    pruner_method="halving",
+    seed=13,
+    verbose=1,
+    log_path=None,
+    best_model_save_path=None,
 ):
     """
 
@@ -83,8 +83,10 @@ def optimize_observation_configs(
     n_startup_trials = 10
     n_evaluations = n_timesteps // eval_freq
 
-    LOGGER.info(f"Optimizing with {n_trials} trials using {n_jobs} parallel jobs, "
-                f"each with {n_timesteps} maximal time steps and {n_evaluations} evaluations")
+    LOGGER.info(
+        f"Optimizing with {n_trials} trials using {n_jobs} parallel jobs, "
+        f"each with {n_timesteps} maximal time steps and {n_evaluations} evaluations"
+    )
 
     # n_warmup_steps: Disable pruner until the trial reaches the given number of step.
     if sampler_method == "random":
@@ -135,17 +137,13 @@ def optimize_observation_configs(
         kwargs_configs = configs.copy()
 
         # Sample environment configurations and keep model hyperparameters
-        sampled_observation_configs = observation_configs_sampler(
-            trial, sampling_setting
-        )
+        sampled_observation_configs = observation_configs_sampler(trial, sampling_setting)
         kwargs_configs.update(sampled_observation_configs)
 
         # Save data for later inspection
         tmp_path = os.path.join(log_path, "trial_" + str(trial.number))
         os.makedirs(tmp_path, exist_ok=True)
-        with open(
-                os.path.join(tmp_path, "sampled_observation_configurations.yml"), "w"
-        ) as f:
+        with open(os.path.join(tmp_path, "sampled_observation_configurations.yml"), "w") as f:
             yaml.dump(kwargs_configs, f)
             LOGGER.info("Saving sampled observation configurations into " + tmp_path)
         LOGGER.debug("Sampled observation configurations:")
@@ -160,11 +158,7 @@ def optimize_observation_configs(
         if isinstance(model.get_env(), VecEnv):
             eval_freq_ = max(eval_freq // model.get_env().num_envs, 1)
 
-        LOGGER.info(
-            "Evaluating with {} episodes after every {} time steps".format(
-                n_eval_episodes, eval_freq_
-            )
-        )
+        LOGGER.info("Evaluating with {} episodes after every {} time steps".format(n_eval_episodes, eval_freq_))
 
         observation_configs_eval_callback = ObservationConfigsTrialEvalCallback(
             eval_env,
@@ -248,5 +242,5 @@ def sample_commonroad_observation_configs(trial, sampling_setting):
 
 OBSERVATION_CONFIGS_SAMPLER = {
     "commonroad-v0": sample_commonroad_observation_configs,
-    "commonroad-v1": sample_commonroad_observation_configs
+    "commonroad-v1": sample_commonroad_observation_configs,
 }

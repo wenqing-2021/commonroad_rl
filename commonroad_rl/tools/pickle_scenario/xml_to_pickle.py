@@ -15,20 +15,26 @@ from commonroad_rl.gym_commonroad.utils.scenario import parse_map_name
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Converts CommonRoad xml files to pickle files",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description="Converts CommonRoad xml files to pickle files",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
     parser.add_argument("--input_dir", "-i", type=str, default="/data/highD-dataset-v1.0/cr_scenarios")
     parser.add_argument("--output_dir", "-o", type=str, default="/data/highD-dataset-v1.0/pickles")
-    parser.add_argument("--duplicate", "-d", action="store_true",
-                        help="Duplicate one scenario file to problem_train and problem_test, for overfitting")
-    parser.add_argument('--num_processes', type=int, default=1,
-                        help='Number of multiple processes to convert dataset, default=1')
+    parser.add_argument(
+        "--duplicate",
+        "-d",
+        action="store_true",
+        help="Duplicate one scenario file to problem_train and problem_test, for overfitting",
+    )
+    parser.add_argument(
+        "--num_processes", type=int, default=1, help="Number of multiple processes to convert dataset, default=1"
+    )
 
     return parser.parse_args()
 
 
 def is_initial_collision(planning_problem_set, env_reset):
-
     initial_state = list(planning_problem_set.planning_problem_dict.values())[0].initial_state
     boundary_collision_object = env_reset["boundary_collision_object"]
     ego_collision_object = pycrcc.RectOBB(
@@ -37,13 +43,12 @@ def is_initial_collision(planning_problem_set, env_reset):
         initial_state.orientation if hasattr(initial_state, "orientation") else 0.0,
         initial_state.position[0],
         initial_state.position[1],
-        )
+    )
 
     return ego_collision_object.collide(boundary_collision_object)
 
 
 def process_single_file(rank: int, fns: List[str], duplicate: bool, output_dir: str, open_lane_ends: bool):
-
     meta_scenario_reset_dict = dict()
     processed_location_list = []
 
@@ -72,8 +77,9 @@ def process_single_file(rank: int, fns: List[str], duplicate: bool, output_dir: 
         pickle.dump(meta_scenario_reset_dict, f)
 
 
-def pickle_xml_scenarios(input_dir: str, output_dir: str, duplicate: bool = False, num_processes: int = 1,
-                         open_lane_ends: bool = True):
+def pickle_xml_scenarios(
+    input_dir: str, output_dir: str, duplicate: bool = False, num_processes: int = 1, open_lane_ends: bool = True
+):
     # makedir
     os.makedirs(output_dir, exist_ok=True)
 
@@ -98,10 +104,11 @@ def pickle_xml_scenarios(input_dir: str, output_dir: str, duplicate: bool = Fals
                         i,
                         fns[i * num_scenarios_per_process : (i + 1) * num_scenarios_per_process],
                         duplicate,
-                        output_dir, open_lane_ends
+                        output_dir,
+                        open_lane_ends,
                     )
                     for i in range(num_processes)
-                ]
+                ],
             )
     else:
         process_single_file(0, fns, duplicate, output_dir, open_lane_ends)
@@ -123,9 +130,5 @@ if __name__ == "__main__":
     args = get_args()
 
     pickle_xml_scenarios(
-        args.input_dir,
-        args.output_dir,
-        duplicate=args.duplicate,
-        num_processes=args.num_processes,
-        open_lane_ends=True
+        args.input_dir, args.output_dir, duplicate=args.duplicate, num_processes=args.num_processes, open_lane_ends=True
     )

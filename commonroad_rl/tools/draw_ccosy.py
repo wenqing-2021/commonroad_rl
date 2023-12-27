@@ -16,8 +16,10 @@ from typing import List
 
 import commonroad_dc.pycrcc as pycrcc
 import commonroad_dc.pycrccosy as pycrccosy
+
 # import pycrcc
 import imageio
+
 # import commonroad_ccosy.visualization.draw_dispatch
 
 import numpy as np
@@ -36,6 +38,7 @@ from commonroad_rl.gym_commonroad.observation.goal_observation import GoalObserv
 from commonroad_rl.gym_commonroad.action.vehicle import Vehicle
 
 import matplotlib
+
 # try:
 #     matplotlib.use("TkAgg")
 # except:
@@ -82,10 +85,10 @@ def get_lanelet_orientation_at_state(lanelet: Lanelet, state: State):
 
 
 def draw_ccosy(
-        scenario: Scenario,
-        planning_problem: PlanningProblem,
-        ccosy_list: List[pycrccosy.CurvilinearCoordinateSystem],
-        ego_state: State = None,
+    scenario: Scenario,
+    planning_problem: PlanningProblem,
+    ccosy_list: List[pycrccosy.CurvilinearCoordinateSystem],
+    ego_state: State = None,
 ):
     """
     Draws all ccosy to the current plot
@@ -96,9 +99,7 @@ def draw_ccosy(
     :param ego_state: The state of the ego vehicle to be plotted (optional)
     """
     for global_cosy in ccosy_list:
-        draw_object(
-            global_cosy.get_segment_list()
-        )
+        draw_object(global_cosy.get_segment_list())
     draw_object(
         scenario,
         draw_params={
@@ -158,9 +159,7 @@ def draw_ccosy(
         ego_state.position[0],
         ego_state.position[1],
     )
-    crdc_draw_dispatch.draw_object(
-        collision_object, draw_params={"collision": {"facecolor": "red"}}
-    )
+    crdc_draw_dispatch.draw_object(collision_object, draw_params={"collision": {"facecolor": "red"}})
     plt.gca().set_aspect("equal")
 
 
@@ -181,14 +180,10 @@ def animate_goal_obs(goal_obs: GoalObservation, title: str):
 
         # Add some point before and after the lane for better visualization
         normal_vector = polyline[1, :] - polyline[0, :]
-        points_before_the_lane = [
-            (polyline[0, :] - step * normal_vector) for step in reversed(range(1, 10))
-        ]
+        points_before_the_lane = [(polyline[0, :] - step * normal_vector) for step in reversed(range(1, 10))]
 
         normal_vector = polyline[-1, :] - polyline[-2, :]
-        points_after_the_lane = [
-            (polyline[-1, :] + step * normal_vector) for step in range(1, 10)
-        ]
+        points_after_the_lane = [(polyline[-1, :] + step * normal_vector) for step in range(1, 10)]
 
         polyline = np.vstack((points_before_the_lane, polyline, points_after_the_lane))
 
@@ -196,9 +191,7 @@ def animate_goal_obs(goal_obs: GoalObservation, title: str):
             [
                 State(
                     position=position,
-                    orientation=get_lanelet_orientation_at_state(
-                        lanelet, State(position=position)
-                    ),
+                    orientation=get_lanelet_orientation_at_state(lanelet, State(position=position)),
                 )
                 for position in polyline
             ]
@@ -215,12 +208,8 @@ def animate_goal_obs(goal_obs: GoalObservation, title: str):
 
     # Plot each steps
     for state_to_test in states_to_test:
-        long_dist, lat_dist = goal_obs.get_long_lat_distance_to_goal(
-            state_to_test.position
-        )
-        long_lane_change_dist = goal_obs.get_long_distance_until_lane_change(
-            state_to_test
-        )
+        long_dist, lat_dist = goal_obs.get_long_lat_distance_to_goal(state_to_test.position)
+        long_lane_change_dist = goal_obs.get_long_distance_until_lane_change(state_to_test)
 
         long_distances.append(long_dist)
         lat_distances.append(lat_dist)
@@ -230,9 +219,7 @@ def animate_goal_obs(goal_obs: GoalObservation, title: str):
         # Left side of the animation: The scenario
         outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
 
-        inner = gridspec.GridSpecFromSubplotSpec(
-            1, 1, subplot_spec=outer[0], wspace=0.1, hspace=0.1
-        )
+        inner = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer[0], wspace=0.1, hspace=0.1)
         ax = plt.Subplot(fig, inner[0])
         fig.add_subplot(ax)
         draw_ccosy(
@@ -243,9 +230,7 @@ def animate_goal_obs(goal_obs: GoalObservation, title: str):
         )
 
         # Right side of the animation: The plots
-        inner = gridspec.GridSpecFromSubplotSpec(
-            3, 1, subplot_spec=outer[1], wspace=0.1, hspace=0.1
-        )
+        inner = gridspec.GridSpecFromSubplotSpec(3, 1, subplot_spec=outer[1], wspace=0.1, hspace=0.1)
         ax = plt.Subplot(fig, inner[0])
         ax.set_xlim([0, num_states - 1])
         ax.set_ylim([min([min(long_distances), 0]) - 0.1, max(long_distances) + 0.1])
@@ -262,9 +247,7 @@ def animate_goal_obs(goal_obs: GoalObservation, title: str):
 
         ax = plt.Subplot(fig, inner[2])
         ax.set_xlim([0, num_states - 1])
-        ax.set_ylim(
-            [min([min(long_lane_distances), 0]) - 0.1, max(long_lane_distances) + 0.1]
-        )
+        ax.set_ylim([min([min(long_lane_distances), 0]) - 0.1, max(long_lane_distances) + 0.1])
         fig.add_subplot(ax)
         plt.plot(long_lane_distances, label="d_long_lane")
         ax.legend()
@@ -280,25 +263,21 @@ def animate_goal_obs(goal_obs: GoalObservation, title: str):
 
 def main(arguments):
     import commonroad_rl
+
     print(commonroad_rl.__file__)
     cr_env = CommonroadEnv()
 
     all_problems = list(cr_env.all_problem_dict.items())
     num_all_problems = len(all_problems)
     for i, (benchmark_id, problem_dict) in enumerate(all_problems):
-
         meta_scenario = cr_env.problem_meta_scenario_dict[benchmark_id]
         obstacle_list = problem_dict["obstacle"]
         scenario = restore_scenario(meta_scenario, obstacle_list)
 
-        planning_problems = list(
-            problem_dict["planning_problem_set"].planning_problem_dict.values()
-        )
+        planning_problems = list(problem_dict["planning_problem_set"].planning_problem_dict.values())
         num_planning_problems = len(planning_problems)
         if num_planning_problems > 1:
-            print(
-                f"There are {num_planning_problems} planning problems in the scenario {benchmark_id}"
-            )
+            print(f"There are {num_planning_problems} planning problems in the scenario {benchmark_id}")
 
         planning_problem = random.choice(planning_problems)
 
@@ -306,21 +285,15 @@ def main(arguments):
             goal_obs = GoalObservation(scenario, planning_problem)
 
             state_to_test = planning_problem.initial_state
-            long_lat_dist = goal_obs.get_long_lat_distance_to_goal(
-                state_to_test.position
-            )
-            long_lane_change_dist = goal_obs.get_long_distance_until_lane_change(
-                state_to_test
-            )
+            long_lat_dist = goal_obs.get_long_lat_distance_to_goal(state_to_test.position)
+            long_lane_change_dist = goal_obs.get_long_distance_until_lane_change(state_to_test)
 
             print(
                 f"{i + 1}/{num_all_problems} DONE {benchmark_id} - "
                 f"Long-lat distance: {long_lat_dist}, Lane change dist: {long_lane_change_dist}"
             )
         except ValueError as ex:
-            print(
-                f"{i + 1}/{num_all_problems} ------------- ERROR ------------ in {benchmark_id}:{ex}"
-            )
+            print(f"{i + 1}/{num_all_problems} ------------- ERROR ------------ in {benchmark_id}:{ex}")
             raise ex
 
         if arguments.animate:

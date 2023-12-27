@@ -2,6 +2,7 @@
 Module for plotting learning curves
 """
 import os
+
 os.environ["KMP_WARNINGS"] = "off"
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import logging
@@ -38,11 +39,11 @@ FIGSIZE = (14, 12)
 if LATEX:
     # use Latex font
     FONTSIZE = 28
-    plt.rcParams['text.latex.preamble'] = [r"\usepackage{lmodern}"]
+    plt.rcParams["text.latex.preamble"] = [r"\usepackage{lmodern}"]
     pgf_with_latex = {  # setup matplotlib to use latex for output
         "pgf.texsystem": "pdflatex",  # change this if using xetex or lautex
         "text.usetex": True,  # use LaTeX to write all text
-        "font.family": 'lmodern',
+        "font.family": "lmodern",
         # blank entries should cause plots
         "font.sans-serif": [],  # ['Avant Garde'],              # to inherit fonts from the document
         # 'text.latex.unicode': True,
@@ -56,7 +57,7 @@ if LATEX:
             r"\usepackage[utf8x]{inputenc}",  # use utf8 fonts
             r"\usepackage[T1]{fontenc}",  # plots will be generated
             r"\usepackage[detect-all,locale=DE]{siunitx}",
-        ]  # using this preamble
+        ],  # using this preamble
     }
     matplotlib.rcParams.update(pgf_with_latex)
 
@@ -64,20 +65,33 @@ if LATEX:
 def argsparser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-f", "--log-folder", help="Log folder", type=str, default="log")
-    parser.add_argument("--model_path", "-model", type=str, nargs="+", default=(),
-                        help="(tuple) Relative path of the to be plotted model from the log folder")
+    parser.add_argument(
+        "--model_path",
+        "-model",
+        type=str,
+        nargs="+",
+        default=(),
+        help="(tuple) Relative path of the to be plotted model from the log folder",
+    )
     parser.add_argument("--no_render", "-nr", action="store_true", help="Whether to render images")
     parser.add_argument("-t", "--title", help="Figure title", type=str, default="result")
     # TODO: integrate sliding window size
-    parser.add_argument("--smooth", action="store_true",
-                        help="Smooth learning curves (average around a sliding window)")
+    parser.add_argument(
+        "--smooth", action="store_true", help="Smooth learning curves (average around a sliding window)"
+    )
     parser.add_argument("--format", "-file", help="Image format to save", type=str, default="png")
-    parser.add_argument("-ic", "--invalid_collision", action="store_true",
-                        help="Plot invalid collisions only graph " +
-                             "- requires logging of info-keyword valid_collision")
-    parser.add_argument("-tc", "--total_collisions", action="store_true",
-                        help="Plot total (valid + invalid) collisions graph " +
-                             "- requires logging of info-keyword valid_collision")
+    parser.add_argument(
+        "-ic",
+        "--invalid_collision",
+        action="store_true",
+        help="Plot invalid collisions only graph " + "- requires logging of info-keyword valid_collision",
+    )
+    parser.add_argument(
+        "-tc",
+        "--total_collisions",
+        action="store_true",
+        help="Plot total (valid + invalid) collisions graph " + "- requires logging of info-keyword valid_collision",
+    )
 
     return parser.parse_args()
 
@@ -242,9 +256,10 @@ def ts2NoLongDrivingCorridors(results):
 
 def ts2num_safe_actions(results):
     x_var = np.cumsum(results.monitor.l)
-    y_var = results.monitor.num_safe_actions.values #/results.monitor.l
+    y_var = results.monitor.num_safe_actions.values  # /results.monitor.l
 
     return x_var, y_var
+
 
 def ts2unknown_braking(results):
     x_var = np.cumsum(results.monitor.l)
@@ -369,21 +384,31 @@ def main():
             set_y_lim = "Rate" in k
             try:
                 fig, axarr = plot_results_baselines(
-                    results, fig, axarr,
-                    nrows=num_of_rows, ncols=num_of_columns, xy_fn=xy_fn,
-                    idx_row=i // num_of_columns, idx_col=i % num_of_columns,
-                    average_group=False, resample=args.smooth,
+                    results,
+                    fig,
+                    axarr,
+                    nrows=num_of_rows,
+                    ncols=num_of_columns,
+                    xy_fn=xy_fn,
+                    idx_row=i // num_of_columns,
+                    idx_col=i % num_of_columns,
+                    average_group=False,
+                    resample=args.smooth,
                     group_fn=group_fn,
-                    xlabel="Training Steps * 1e6", ylabel=k,
+                    xlabel="Training Steps * 1e6",
+                    ylabel=k,
                     # xlabel="\\textbf{Training Steps * 1000}",
                     # ylabel="\\textbf{" + k + "}",
                     labelpad=LABELPAD,
                     legend_outside=True,
-                    legend=legend, plot_line=plot_line, set_y_lim=set_y_lim)
+                    legend=legend,
+                    plot_line=plot_line,
+                    set_y_lim=set_y_lim,
+                )
             except AttributeError:
                 continue
         plt.tight_layout()
-        fig.savefig(os.path.join(log_dir, model, f"{model}.{args.format}"), format=args.format, bbox_inches='tight')
+        fig.savefig(os.path.join(log_dir, model, f"{model}.{args.format}"), format=args.format, bbox_inches="tight")
         LOGGER.info(f"Saved {model}.{args.format} to {log_dir}/{model}")  # , figure, os.path.join(log_dir, model))
 
 

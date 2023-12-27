@@ -26,6 +26,7 @@ LOGGER = logging.getLogger(__name__)
 class Navigator:
     class CosyVehicleObservation(Enum):
         """Enum for the observations CoSy"""
+
         # TODO: add this as a property for the class, not for every function call.
 
         AUTOMATIC = "automatic"
@@ -46,16 +47,12 @@ class Navigator:
 
         # version 2020 variables
         self.sectionized_environment = self.route.retrieve_route_sections()
-        self.sectionized_environment_set = set(
-            [item for sublist in self.sectionized_environment for item in sublist]
-        )
+        self.sectionized_environment_set = set([item for sublist in self.sectionized_environment for item in sublist])
         self.merged_route_lanelets = None
         self.ccosy_list = self._get_route_cosy()
 
         self.num_of_lane_changes = len(self.ccosy_list)
-        self.merged_section_length_list = np.array(
-            [curvi_cosy.length() for curvi_cosy in self.ccosy_list]
-        )
+        self.merged_section_length_list = np.array([curvi_cosy.length() for curvi_cosy in self.ccosy_list])
         # ==================== #
         #         Goal         #
         # ==================== #
@@ -75,14 +72,9 @@ class Navigator:
         self.goal_curvi_face_coords = None
 
         if self.route.type == RouteType.REGULAR:
-            goal_face_coords = self._get_goal_face_points(
-                self._get_goal_polygon(self.planning_problem.goal)
-            )
+            goal_face_coords = self._get_goal_face_points(self._get_goal_polygon(self.planning_problem.goal))
             self.goal_curvi_face_coords = np.array(
-                [
-                    (self._get_safe_curvilinear_coords(self.ccosy_list[-1], g))[0]
-                    for g in goal_face_coords
-                ]
+                [(self._get_safe_curvilinear_coords(self.ccosy_list[-1], g))[0] for g in goal_face_coords]
             )
 
             self.goal_min_curvi_coords = np.min(self.goal_curvi_face_coords, axis=0)
@@ -100,16 +92,10 @@ class Navigator:
 
         if self.route.type == RouteType.REGULAR:
             # for Regular Scenarios: Goal is everywhere reached.
-            goal_face_coords = self._get_goal_face_points(
-                self._get_goal_polygon(self.planning_problem.goal)
-            )
+            goal_face_coords = self._get_goal_face_points(self._get_goal_polygon(self.planning_problem.goal))
             self.goal_curvi_face_coords_ref = np.array(
                 [
-                    (
-                        self._get_safe_distance_to_curvilinear2(
-                            id_curvilinear="reference_path", position_ego=pos_g
-                        )
-                    )[0]
+                    (self._get_safe_distance_to_curvilinear2(id_curvilinear="reference_path", position_ego=pos_g))[0]
                     for pos_g in goal_face_coords
                 ]
             )
@@ -126,14 +112,11 @@ class Navigator:
             id_polyline.append(
                 (
                     id_lanelet,
-                    self.route.scenario.lanelet_network.find_lanelet_by_id(
-                        id_lanelet
-                    ).center_vertices,
+                    self.route.scenario.lanelet_network.find_lanelet_by_id(id_lanelet).center_vertices,
                 )
             )
 
         for id_curvilinear, polyline in id_polyline:
-
             ccosy, resampled_polyline = self.create_coordinate_system_from_polyline(
                 polyline, return_resampled_polyline=True
             )
@@ -176,17 +159,11 @@ class Navigator:
                 if current_merged_lanelet is None:
                     current_merged_lanelet = lanelet
                 else:
-                    current_merged_lanelet = Lanelet.merge_lanelets(
-                        current_merged_lanelet, lanelet
-                    )
+                    current_merged_lanelet = Lanelet.merge_lanelets(current_merged_lanelet, lanelet)
 
-        goal_lanelet = self.lanelet_network.find_lanelet_by_id(
-            self.route.list_ids_lanelets[-1]
-        )
+        goal_lanelet = self.lanelet_network.find_lanelet_by_id(self.route.list_ids_lanelets[-1])
         if current_merged_lanelet is not None:
-            current_merged_lanelet = Lanelet.merge_lanelets(
-                current_merged_lanelet, goal_lanelet
-            )
+            current_merged_lanelet = Lanelet.merge_lanelets(current_merged_lanelet, goal_lanelet)
         else:
             current_merged_lanelet = goal_lanelet
 
@@ -245,39 +222,27 @@ class Navigator:
         else:
             return ccosy
 
-    def _get_safe_curvilinear_coords(
-        self, ccosy, position: np.ndarray
-    ) -> Tuple[np.ndarray, int]:
+    def _get_safe_curvilinear_coords(self, ccosy, position: np.ndarray) -> Tuple[np.ndarray, int]:
         # version 2020
 
         try:
             rel_pos_to_domain = 0
             long_lat_distance = self._get_curvilinear_coords(ccosy, position)
         except ValueError:
-            long_lat_distance, rel_pos_to_domain = self._project_out_of_domain(
-                ccosy, position
-            )
+            long_lat_distance, rel_pos_to_domain = self._project_out_of_domain(ccosy, position)
 
         return np.array(long_lat_distance), rel_pos_to_domain
 
-    def _project_out_of_domain(
-        self, ccosy, position: np.ndarray
-    ) -> Tuple[np.ndarray, int]:
+    def _project_out_of_domain(self, ccosy, position: np.ndarray) -> Tuple[np.ndarray, int]:
         """for projection out of domain.
         Extend start and end of ccosy linearily with tangent"""
         # version 2020
 
         eps = 0.0001
-        curvi_coords_of_projection_domain = np.array(
-            ccosy.curvilinear_projection_domain()
-        )
+        curvi_coords_of_projection_domain = np.array(ccosy.curvilinear_projection_domain())
 
-        longitudinal_min, normal_min = (
-            np.min(curvi_coords_of_projection_domain, axis=0) + eps
-        )
-        longitudinal_max, normal_max = (
-            np.max(curvi_coords_of_projection_domain, axis=0) - eps
-        )
+        longitudinal_min, normal_min = np.min(curvi_coords_of_projection_domain, axis=0) + eps
+        longitudinal_max, normal_max = np.max(curvi_coords_of_projection_domain, axis=0) - eps
         normal_center = (normal_min + normal_max) / 2
         bounding_points = np.array(
             [
@@ -285,29 +250,19 @@ class Navigator:
                 ccosy.convert_to_cartesian_coords(longitudinal_max, normal_center),
             ]
         )
-        rel_positions = position - np.array(
-            [bounding_point for bounding_point in bounding_points]
-        )
+        rel_positions = position - np.array([bounding_point for bounding_point in bounding_points])
         distances = np.linalg.norm(rel_positions, axis=1)
 
         if distances[0] < distances[1]:
             # Nearer to the first bounding point
             rel_pos_to_domain = -1
-            long_dist = longitudinal_min + np.dot(
-                ccosy.tangent(longitudinal_min), rel_positions[0]
-            )
-            lat_dist = normal_center + np.dot(
-                ccosy.normal(longitudinal_min), rel_positions[0]
-            )
+            long_dist = longitudinal_min + np.dot(ccosy.tangent(longitudinal_min), rel_positions[0])
+            lat_dist = normal_center + np.dot(ccosy.normal(longitudinal_min), rel_positions[0])
         else:
             # Nearer to the last bounding point
             rel_pos_to_domain = 1
-            long_dist = longitudinal_max + np.dot(
-                ccosy.tangent(longitudinal_max), rel_positions[1]
-            )
-            lat_dist = normal_center + np.dot(
-                ccosy.normal(longitudinal_max), rel_positions[1]
-            )
+            long_dist = longitudinal_max + np.dot(ccosy.tangent(longitudinal_max), rel_positions[1])
+            lat_dist = normal_center + np.dot(ccosy.normal(longitudinal_max), rel_positions[1])
 
         return np.array([long_dist, lat_dist]), rel_pos_to_domain
 
@@ -317,9 +272,7 @@ class Navigator:
 
     def _get_curvilinear_coords_over_lanelet(self, lanelet: Lanelet, position):
         # version 2020
-        current_ccosy = self.create_coordinate_system_from_polyline(
-            lanelet.center_vertices
-        )
+        current_ccosy = self.create_coordinate_system_from_polyline(lanelet.center_vertices)
 
         return self._get_curvilinear_coords(current_ccosy, position)
 
@@ -343,9 +296,7 @@ class Navigator:
         goal_coords = [np.array(x) for x in zip(*goal_shape.exterior.coords.xy)]
 
         # round the same precision as is done within the commonroad xml files
-        goal_coords = [
-            np.round((a + b) / 2, 6) for a, b in zip(goal_coords, goal_coords[1:])
-        ]
+        goal_coords = [np.round((a + b) / 2, 6) for a, b in zip(goal_coords, goal_coords[1:])]
         return goal_coords
 
     def _get_goal_polygon(self, goal: GoalRegion) -> Polygon:
@@ -372,29 +323,18 @@ class Navigator:
                 elif isinstance(shape, (cr_shape.Rectangle, cr_shape.Polygon)):
                     polygon_list.append(shape.shapely_object)
                 else:
-                    raise ValueError(
-                        f"Shape can't be converted to Shapely Polygon: {shape}"
-                    )
+                    raise ValueError(f"Shape can't be converted to Shapely Polygon: {shape}")
             return polygon_list
 
         def merge_polygons(polygons_to_merge):
-            return unary_union(
-                [
-                    geom if geom.is_valid else geom.buffer(0)
-                    for geom in polygons_to_merge
-                ]
-            )
+            return unary_union([geom if geom.is_valid else geom.buffer(0) for geom in polygons_to_merge])
 
         polygons = [Polygon()]
         for goal_state in goal.state_list:
             if hasattr(goal_state, "position"):
                 if isinstance(goal_state.position, cr_shape.ShapeGroup):
-                    polygons.extend(
-                        get_polygon_list_from_shapegroup(goal_state.position)
-                    )
-                elif isinstance(
-                    goal_state.position, (cr_shape.Rectangle, cr_shape.Polygon)
-                ):
+                    polygons.extend(get_polygon_list_from_shapegroup(goal_state.position))
+                elif isinstance(goal_state.position, (cr_shape.Rectangle, cr_shape.Polygon)):
                     polygons.append(goal_state.position.shapely_object)
                 else:
                     raise NotImplementedError(
@@ -409,7 +349,6 @@ class Navigator:
     def get_position_curvi_coords(self, ego_vehicle_state_position: np.ndarray):
         # version 2020
         for cosy_idx, curvi_cosy in enumerate(self.ccosy_list):
-
             ego_curvi_coords, rel_pos_to_domain = self._get_safe_curvilinear_coords(
                 curvi_cosy, ego_vehicle_state_position
             )
@@ -422,9 +361,7 @@ class Navigator:
 
         raise ValueError("Unable to project the ego vehicle on the global cosy")
 
-    def get_long_lat_distance_to_goal(
-        self, ego_vehicle_state_position: np.ndarray
-    ) -> Tuple[float, float]:
+    def get_long_lat_distance_to_goal(self, ego_vehicle_state_position: np.ndarray) -> Tuple[float, float]:
         """
         Get the longitudinal and latitudinal distance from the ego vehicle to the goal,
         measured in the frenet cos of the Navigator lanelet
@@ -438,9 +375,7 @@ class Navigator:
         if self.route.type == RouteType.SURVIVAL:
             return 0.0, 0.0
 
-        ego_curvi_coords, cosy_idx = self.get_position_curvi_coords(
-            ego_vehicle_state_position
-        )
+        ego_curvi_coords, cosy_idx = self.get_position_curvi_coords(ego_vehicle_state_position)
 
         is_last_section = cosy_idx == self.num_of_lane_changes - 1
 
@@ -449,23 +384,15 @@ class Navigator:
             min_distance = np.min(relative_distances, axis=0)
             max_distance = np.max(relative_distances, axis=0)
 
-            (min_distance_long, min_distance_lat) = np.maximum(
-                np.minimum(0.0, max_distance), min_distance
-            )
+            (min_distance_long, min_distance_lat) = np.maximum(np.minimum(0.0, max_distance), min_distance)
         else:
-            min_distance_long = (
-                self.merged_section_length_list[cosy_idx] - ego_curvi_coords[0]
-            )
+            min_distance_long = self.merged_section_length_list[cosy_idx] - ego_curvi_coords[0]
             current_section_idx = cosy_idx + 1
             while current_section_idx != self.num_of_lane_changes - 1:
-                min_distance_long += self.merged_section_length_list[
-                    current_section_idx
-                ]
+                min_distance_long += self.merged_section_length_list[current_section_idx]
                 current_section_idx += 1
 
-            relative_lat_distances = (
-                self.goal_curvi_face_coords[:, 1] - ego_curvi_coords[1]
-            )
+            relative_lat_distances = self.goal_curvi_face_coords[:, 1] - ego_curvi_coords[1]
             min_distance = np.min(relative_lat_distances, axis=0)
             max_distance = np.max(relative_lat_distances, axis=0)
 
@@ -474,9 +401,7 @@ class Navigator:
 
         return min_distance_long, min_distance_lat
 
-    def _get_safe_distance_to_curvilinear2(
-        self, id_curvilinear: Union[str, int], position_ego: np.ndarray
-    ):
+    def _get_safe_distance_to_curvilinear2(self, id_curvilinear: Union[str, int], position_ego: np.ndarray):
         """
         distance to curvilinear with fallback to closest point on reference path via kdtree
         :param id_curvilinear: unique string, lanelet_id or "reference_path"
@@ -499,9 +424,7 @@ class Navigator:
 
         indomain = 1.0
         try:
-            p_curvilinear_closest = ccosy.convert_to_curvilinear_coords(
-                position_ego[0], position_ego[1]
-            )
+            p_curvilinear_closest = ccosy.convert_to_curvilinear_coords(position_ego[0], position_ego[1])
             distance = p_curvilinear_closest[1]
             indomain = 1.0
 
@@ -516,9 +439,7 @@ class Navigator:
                 distance, idx = kdtree.query(position_ego)
                 closest_point = resampled_polyline[idx]
 
-                p_curvilinear_closest = ccosy.convert_to_curvilinear_coords(
-                    closest_point[0], closest_point[1]
-                )
+                p_curvilinear_closest = ccosy.convert_to_curvilinear_coords(closest_point[0], closest_point[1])
                 # Done, but distance is yet not in curvilinear direction.
                 # return indomain as angle between ego and point on ccosy to the curvilinear CoSy.
                 if np.isclose(distance, 0, atol=1e-3):
@@ -545,9 +466,7 @@ class Navigator:
 
         return p_curvilinear_closest[0], distance, ccosy, indomain
 
-    def get_lane_change_distance(
-        self, state: State, active_lanelets: List[int] = None
-    ) -> float:
+    def get_lane_change_distance(self, state: State, active_lanelets: List[int] = None) -> float:
         # version 2020
         """
         get distance in the frenet cos of the reference path to the end of the current lanelet
@@ -558,9 +477,7 @@ class Navigator:
         if self.route.type == RouteType.SURVIVAL:
             return 0.0
         if active_lanelets is None:
-            active_lanelets = self.scenario.lanelet_network.find_lanelet_by_position(
-                [state.position]
-            )[0]
+            active_lanelets = self.scenario.lanelet_network.find_lanelet_by_position([state.position])[0]
 
         current_lanelet_ids_on_route = [
             current_lanelet_id
@@ -586,19 +503,13 @@ class Navigator:
         while len(route_successors) != 0:
             # Add the length of the current lane
             current_lanelet_id = route_successors.pop()
-            current_lanelet = self.lanelet_network.find_lanelet_by_id(
-                current_lanelet_id
-            )
+            current_lanelet = self.lanelet_network.find_lanelet_by_id(current_lanelet_id)
             try:
                 if distance_until_lane_change == 0.0:
                     # Calculate the remaining distance in this lanelet
-                    current_distance = self._get_curvilinear_coords_over_lanelet(
-                        current_lanelet, state.position
-                    )
+                    current_distance = self._get_curvilinear_coords_over_lanelet(current_lanelet, state.position)
                     current_distance_long = current_distance[0]
-                    distance_until_lane_change = (
-                        current_lanelet.distance[-1] - current_distance_long
-                    )
+                    distance_until_lane_change = current_lanelet.distance[-1] - current_distance_long
                 else:
                     distance_until_lane_change += current_lanelet.distance[-1]
 
@@ -606,9 +517,7 @@ class Navigator:
                 pass
 
             successors_set = set(current_lanelet.successor)
-            route_successors = successors_set.intersection(
-                self.sectionized_environment_set
-            )
+            route_successors = successors_set.intersection(self.sectionized_environment_set)
 
         return distance_until_lane_change
 
@@ -682,9 +591,7 @@ class Navigator:
         # version 06.2021
         position_ego = state.position
 
-        orientation_vehicle = self._evaluate_orientation_observations(
-            state, observation_cos
-        )
+        orientation_vehicle = self._evaluate_orientation_observations(state, observation_cos)
 
         # self.route.clcs is pycrccosy CurvilinearCoordinateSystem of route.ref_path
         # position closet on reference path in clcs: p_curvilinear = [long_clcs, lat_clcs]
@@ -719,18 +626,12 @@ class Navigator:
             distance,
             ccosy,
             indomain,
-        ) = self._get_safe_distance_to_curvilinear2(
-            id_curvilinear="reference_path", position_ego=state.position
-        )
+        ) = self._get_safe_distance_to_curvilinear2(id_curvilinear="reference_path", position_ego=state.position)
 
         if p_curvilinear_long < self.goal_min_curvi_coords_ref:
-            min_distance_to_goal_long_on_ref = (
-                self.goal_min_curvi_coords_ref - p_curvilinear_long
-            )
+            min_distance_to_goal_long_on_ref = self.goal_min_curvi_coords_ref - p_curvilinear_long
         elif p_curvilinear_long > self.goal_max_curvi_coord_ref:
-            min_distance_to_goal_long_on_ref = (
-                self.goal_max_curvi_coord_ref - p_curvilinear_long
-            )
+            min_distance_to_goal_long_on_ref = self.goal_max_curvi_coord_ref - p_curvilinear_long
         else:
             min_distance_to_goal_long_on_ref = 0.0
 
@@ -862,17 +763,11 @@ class Navigator:
 
         # positions and orientations of waypoints collected, for lower variance project now on vehicle cos
         vectors_to_ref = np.asarray(vectors_to_ref) - position_ego  # relative vector
-        v_ref_tangent = np.asarray(
-            v_ref_tangent
-        )  # unit length tangent vector at dist i of ref_path
+        v_ref_tangent = np.asarray(v_ref_tangent)  # unit length tangent vector at dist i of ref_path
         # compute relative orientations at the ref_path points
-        orientations_ref = (
-            np.arctan2(v_ref_tangent[:, 1], v_ref_tangent[:, 0]) - orientation_ego
-        )
+        orientations_ref = np.arctan2(v_ref_tangent[:, 1], v_ref_tangent[:, 0]) - orientation_ego
         # rotate matrix arond orientation, so
-        vectors_to_ref, _ = cls._rotate_2darray_by_orientation(
-            orient=-orientation_ego, twodim_array=vectors_to_ref
-        )
+        vectors_to_ref, _ = cls._rotate_2darray_by_orientation(orient=-orientation_ego, twodim_array=vectors_to_ref)
         return vectors_to_ref, orientations_ref
 
     @staticmethod
@@ -927,18 +822,12 @@ class Navigator:
         """
         # version 06.2021
 
-        computed_waypoints = np.zeros(
-            (len(lanelets_id_rel), len(distances_per_lanelet), 2)
-        )
-        computed_orientations = np.zeros(
-            (len(lanelets_id_rel), len(distances_per_lanelet))
-        )
+        computed_waypoints = np.zeros((len(lanelets_id_rel), len(distances_per_lanelet), 2))
+        computed_orientations = np.zeros((len(lanelets_id_rel), len(distances_per_lanelet)))
 
         position_ego = state.position
 
-        orientation_vehicle = self._evaluate_orientation_observations(
-            state, observation_cos
-        )
+        orientation_vehicle = self._evaluate_orientation_observations(state, observation_cos)
 
         distance_lanelets = []
         # self.route.clcs is pycrccosy CurvilinearCoordinateSystem of route.ref_path
@@ -954,9 +843,7 @@ class Navigator:
                 distance,
                 ccosy,
                 _,
-            ) = self._get_safe_distance_to_curvilinear2(
-                id_curvilinear=id_lanelet, position_ego=position_ego
-            )
+            ) = self._get_safe_distance_to_curvilinear2(id_curvilinear=id_lanelet, position_ego=position_ego)
             distance_lanelets.append((id_lanelet, p_curvilinear_long, distance, ccosy))
 
         if not distance_lanelets:
@@ -965,15 +852,11 @@ class Navigator:
                 f"has no closest lanelet in lanelet ids: {self.route.list_ids_lanelets}"
             )
 
-        distance_lanelets.sort(
-            key=lambda tup: abs(tup[2])
-        )  # sorts in place by distance
+        distance_lanelets.sort(key=lambda tup: abs(tup[2]))  # sorts in place by distance
 
         # LOGGER.error(distance_lanelets)
 
-        idx_closest_lanelet = self.route.list_ids_lanelets.index(
-            distance_lanelets[0][0]
-        )
+        idx_closest_lanelet = self.route.list_ids_lanelets.index(distance_lanelets[0][0])
         for count, rel_id in enumerate(lanelets_id_rel):
             # rel_id is 0 for closest, +1 for successor of closest, +-1 for predecessor of closest
             idx_observe = min(
@@ -1026,16 +909,10 @@ class Navigator:
 
             def get_lanelet_relative_orientation(lanelet_id):
                 lanelet = scenario.lanelet_network.find_lanelet_by_id(lanelet_id)
-                lanelet_orientation = Navigator.lanelet_orientation_at_position(
-                    lanelet, position
-                )
-                return np.abs(
-                    Navigator.relative_orientation(lanelet_orientation, orientation)
-                )
+                lanelet_orientation = Navigator.lanelet_orientation_at_position(lanelet, position)
+                return np.abs(Navigator.relative_orientation(lanelet_orientation, orientation))
 
-            orientation_differences = np.array(
-                list(map(get_lanelet_relative_orientation, lanelet_id_list))
-            )
+            orientation_differences = np.array(list(map(get_lanelet_relative_orientation, lanelet_id_list)))
             sorted_indices = np.argsort(orientation_differences)
             return list(lanelet_id_list[sorted_indices])
 

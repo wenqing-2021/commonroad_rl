@@ -3,11 +3,7 @@
 from commonroad_rl.gym_commonroad.reward.termination import Termination
 from commonroad_rl.tests.common.marker import unit_test, functional
 
-configs = {
-    "termination_configs": {
-        "terminate_on_off_road": True
-    }
-}
+configs = {"termination_configs": {"terminate_on_off_road": True}}
 
 
 @unit_test

@@ -18,21 +18,21 @@ from commonroad_rl.tests.common.path import *
 xml_path = os.path.join(resource_root("test_traffic_sign"))
 pickle_path = os.path.join(output_root("test_traffic_sign"), "pickles")
 
-def prepare_for_traffic_sign_test():
 
-    pickle_xml_scenarios(
-        input_dir=xml_path,
-        output_dir=pickle_path
-    )
+def prepare_for_traffic_sign_test():
+    pickle_xml_scenarios(input_dir=xml_path, output_dir=pickle_path)
 
     # Traffic Sign observation settings
     traffic_sign_observation = TrafficSignObservation(
-        configs={"traffic_sign_configs":
-                     {"observe_stop_sign": True,
-                      "observe_yield_sign": True,
-                      "observe_priority_sign": True,
-                      "observe_right_of_way_sign": True,
-                      }})
+        configs={
+            "traffic_sign_configs": {
+                "observe_stop_sign": True,
+                "observe_yield_sign": True,
+                "observe_priority_sign": True,
+                "observe_right_of_way_sign": True,
+            }
+        }
+    )
 
     # specify resource path
     meta_scenario_path = os.path.join(pickle_path, "meta_scenario")
@@ -66,29 +66,37 @@ def prepare_for_traffic_sign_test():
     return traffic_sign_observation, scenario, connected_lanelet_dict, lanelet_polygons, lanelet_polygons_sg
 
 
-traffic_sign_observation, scenario_ts, connected_lanelet_dict_ts, lanelet_polygons_ts, lanelet_polygons_sg_ts = prepare_for_traffic_sign_test()
+(
+    traffic_sign_observation,
+    scenario_ts,
+    connected_lanelet_dict_ts,
+    lanelet_polygons_ts,
+    lanelet_polygons_sg_ts,
+) = prepare_for_traffic_sign_test()
 
 
 @pytest.mark.parametrize(
     ("ego_position", "traffic_sign_expected", "distance_expected"),
     [
-        (np.array([51.3018, -17.9640]),  # Previous result calculated using wrong method or by calculating distance to
-                                         # wrong (not closest) signs by hand
-         ["stop_sign"],
-         [7.7294],  # Used to be 5.8765
-         ),
-        (np.array([51.3108, -30.]),
-         ["yield_sign"],
-         [5.2505],  # Used to be 14.6937
-         ),
-        (np.array([84.0947, -55.1586]),
-         ["priority_sign"],
-         [17.0867]  # Used to be 14.8328
-         ),
-        (np.array([52.5147, -20.9587]),
-         ["right_of_way_sign"],
-         [1.0976],  # Used to be 0.0
-         ),
+        (
+            np.array(
+                [51.3018, -17.9640]
+            ),  # Previous result calculated using wrong method or by calculating distance to
+            # wrong (not closest) signs by hand
+            ["stop_sign"],
+            [7.7294],  # Used to be 5.8765
+        ),
+        (
+            np.array([51.3108, -30.0]),
+            ["yield_sign"],
+            [5.2505],  # Used to be 14.6937
+        ),
+        (np.array([84.0947, -55.1586]), ["priority_sign"], [17.0867]),  # Used to be 14.8328
+        (
+            np.array([52.5147, -20.9587]),
+            ["right_of_way_sign"],
+            [1.0976],  # Used to be 0.0
+        ),
     ],
 )
 @module_test
@@ -103,16 +111,16 @@ def test_get_traffic_sign_on_lanelets(ego_position, traffic_sign_expected, dista
     ego_vehicle.reset(ego_state, dt=0.1)
 
     # find ego lanelet here because multiple observations need it
-    ego_lanelet_ids = ObservationCollector.sorted_lanelets_by_state(scenario_ts, ego_state,
-                                                                    lanelet_polygons_ts, lanelet_polygons_sg_ts)
+    ego_lanelet_ids = ObservationCollector.sorted_lanelets_by_state(
+        scenario_ts, ego_state, lanelet_polygons_ts, lanelet_polygons_sg_ts
+    )
     ego_lanelet_id = ego_lanelet_ids[0]
 
     ego_lanelet = scenario_ts.lanelet_network.find_lanelet_by_id(ego_lanelet_id)
 
-    local_ccosy, _ = ObservationCollector.get_local_curvi_cosy(scenario_ts.lanelet_network,
-                                                               ego_lanelet_id,
-                                                               None,
-                                                               max_lane_merge_range=1000.)
+    local_ccosy, _ = ObservationCollector.get_local_curvi_cosy(
+        scenario_ts.lanelet_network, ego_lanelet_id, None, max_lane_merge_range=1000.0
+    )
     # observe traffic sign on ego vehicle lanelet
     traffic_sign_observation.observe(scenario_ts, ego_vehicle, ego_lanelet, local_ccosy)
 
@@ -137,5 +145,3 @@ def test_get_traffic_sign_on_lanelets(ego_position, traffic_sign_expected, dista
     # Check against ground truth
     assert traffic_sign_observed == traffic_sign_expected
     assert np.allclose(traffic_sign_distance, distance_expected, atol=0.001)
-
-

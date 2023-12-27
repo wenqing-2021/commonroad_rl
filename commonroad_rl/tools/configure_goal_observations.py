@@ -33,18 +33,33 @@ def get_args():
     """Scan arguments"""
     parser = argparse.ArgumentParser(
         description="Analyzes goal_definitions of scenarios and configures goal_observations for model",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--problem_dir", "-i", help="Path to problems", type=str,
-                        default=os.path.join(constants.PATH_PARAMS["pickles"], "problem"))
-    parser.add_argument("--configure", "-c", help="Adjust the goal_observations in the configuration",
-                        action="store_true")
-    parser.add_argument("--config_path", "-cp", help="Path to model configuration file", type=str,
-                        default=constants.PATH_PARAMS["configs"]["commonroad-v1"])
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--problem_dir",
+        "-i",
+        help="Path to problems",
+        type=str,
+        default=os.path.join(constants.PATH_PARAMS["pickles"], "problem"),
+    )
+    parser.add_argument(
+        "--configure", "-c", help="Adjust the goal_observations in the configuration", action="store_true"
+    )
+    parser.add_argument(
+        "--config_path",
+        "-cp",
+        help="Path to model configuration file",
+        type=str,
+        default=constants.PATH_PARAMS["configs"]["commonroad-v1"],
+    )
     return parser.parse_args()
 
 
-def main(problem_dir: str = os.path.join(constants.PATH_PARAMS["pickles"], "problem"), configure: bool = False,
-         config_path: str = constants.PATH_PARAMS["configs"]["commonroad-v1"]) -> bool:
+def main(
+    problem_dir: str = os.path.join(constants.PATH_PARAMS["pickles"], "problem"),
+    configure: bool = False,
+    config_path: str = constants.PATH_PARAMS["configs"]["commonroad-v1"],
+) -> bool:
     """
     Analyzes goal-requirements of scenarios and sets goal-observations in config
 
@@ -107,7 +122,7 @@ def analyze_problems(base_path: str, filenames: [str]) -> dict:
 
     # Look at every goal state in every planning problem in every scenario
     for filename in filenames:
-        with open(os.path.join(base_path, filename), 'rb') as file:
+        with open(os.path.join(base_path, filename), "rb") as file:
             planning_problem_dict: dict = pickle.load(file)["planning_problem_set"].planning_problem_dict
 
         for _, planning_problem in planning_problem_dict.items():
@@ -118,8 +133,10 @@ def analyze_problems(base_path: str, filenames: [str]) -> dict:
                     if goal_attributes != attributes:
                         # Print the first not matching file
                         if matching:
-                            print(f"\'{os.path.splitext(filename)[0]}\' and \'{os.path.splitext(filenames[0])[0]}\'"
-                                  f" don't have the same goal_state attributes.\n")
+                            print(
+                                f"'{os.path.splitext(filename)[0]}' and '{os.path.splitext(filenames[0])[0]}'"
+                                f" don't have the same goal_state attributes.\n"
+                            )
                         matching = False
                         attributes |= goal_attributes
 
@@ -147,36 +164,50 @@ def set_configuration(config_path: str, goal_observation: dict):
         config = file.read()
 
     if goal_observation["position"]:
-        config = re.sub("observe_distance_goal_long:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_long: True", config)
-        config = re.sub("observe_distance_goal_lat:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_lat: True", config)
+        config = re.sub(
+            "observe_distance_goal_long:( ){0,5}([Tt]rue|[Ff]alse)", "observe_distance_goal_long: True", config
+        )
+        config = re.sub(
+            "observe_distance_goal_lat:( ){0,5}([Tt]rue|[Ff]alse)", "observe_distance_goal_lat: True", config
+        )
     else:
-        config = re.sub("observe_distance_goal_long:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_long: False", config)
-        config = re.sub("observe_distance_goal_lat:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_lat: False", config)
+        config = re.sub(
+            "observe_distance_goal_long:( ){0,5}([Tt]rue|[Ff]alse)", "observe_distance_goal_long: False", config
+        )
+        config = re.sub(
+            "observe_distance_goal_lat:( ){0,5}([Tt]rue|[Ff]alse)", "observe_distance_goal_lat: False", config
+        )
 
     if goal_observation["velocity"]:
-        config = re.sub("observe_distance_goal_velocity:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_velocity: True", config)
+        config = re.sub(
+            "observe_distance_goal_velocity:( ){0,5}([Tt]rue|[Ff]alse)", "observe_distance_goal_velocity: True", config
+        )
     else:
-        config = re.sub("observe_distance_goal_velocity:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_velocity: False", config)
+        config = re.sub(
+            "observe_distance_goal_velocity:( ){0,5}([Tt]rue|[Ff]alse)", "observe_distance_goal_velocity: False", config
+        )
 
     if goal_observation["orientation"]:
-        config = re.sub("observe_distance_goal_orientation:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_orientation: True", config)
+        config = re.sub(
+            "observe_distance_goal_orientation:( ){0,5}([Tt]rue|[Ff]alse)",
+            "observe_distance_goal_orientation: True",
+            config,
+        )
     else:
-        config = re.sub("observe_distance_goal_orientation:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_orientation: False", config)
+        config = re.sub(
+            "observe_distance_goal_orientation:( ){0,5}([Tt]rue|[Ff]alse)",
+            "observe_distance_goal_orientation: False",
+            config,
+        )
 
     if goal_observation["time_step"]:
-        config = re.sub("observe_distance_goal_time:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_time: True", config)
+        config = re.sub(
+            "observe_distance_goal_time:( ){0,5}([Tt]rue|[Ff]alse)", "observe_distance_goal_time: True", config
+        )
     else:
-        config = re.sub("observe_distance_goal_time:( ){0,5}([Tt]rue|[Ff]alse)",
-                        "observe_distance_goal_time: False", config)
+        config = re.sub(
+            "observe_distance_goal_time:( ){0,5}([Tt]rue|[Ff]alse)", "observe_distance_goal_time: False", config
+        )
 
     with open(config_path, "w") as file:
         file.write(config)
@@ -184,8 +215,4 @@ def set_configuration(config_path: str, goal_observation: dict):
 
 if __name__ == "__main__":
     args = get_args()
-    main(
-        problem_dir=args.problem_dir,
-        configure=args.configure,
-        config_path=args.config_path
-    )
+    main(problem_dir=args.problem_dir, configure=args.configure, config_path=args.config_path)

@@ -12,12 +12,8 @@ from shutil import copyfile
 
 
 def get_args():
-    parser = argparse.ArgumentParser(
-        description="Divide pickle files into training and testing"
-    )
-    parser.add_argument(
-        "--input_dir", "-i", type=str, default="/home/chenx/project/pickles/problem"
-    )
+    parser = argparse.ArgumentParser(description="Divide pickle files into training and testing")
+    parser.add_argument("--input_dir", "-i", type=str, default="/home/chenx/project/pickles/problem")
     parser.add_argument(
         "--output_dir_train",
         "-otrain",
@@ -52,7 +48,7 @@ def main():
     random.shuffle(fns)
 
     if args.train_ratio == -1:
-        num_train=len(fns)
+        num_train = len(fns)
         print("Copying training and testing data ...")
         for i, fn in enumerate(fns):
             print(f"{i + 1}/{num_train}", end="\r")

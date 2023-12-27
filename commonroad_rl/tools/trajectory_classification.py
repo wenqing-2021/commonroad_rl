@@ -16,9 +16,7 @@ class TrajectoryType(Enum):
     BOTH = 4
 
 
-def classify_trajectory(
-    t: Trajectory, min_velocity=1.0, turn_threshold=0.03
-):
+def classify_trajectory(t: Trajectory, min_velocity=1.0, turn_threshold=0.03):
     """
     Get TrajectoryType of the given trajectory
     :param t: trajectory to classify
@@ -57,7 +55,6 @@ def _classify_curvature(c, turn_threshold):
 
 
 def _smooth(x, iterations=1, window=2):
-
     if iterations <= 0:
         return x
 
@@ -87,7 +84,6 @@ def _calc_derivative(x, t):
 
 
 def _calc_curvature(traj: Trajectory):
-
     t = list(map(lambda s: s.time_step, traj.state_list))
     x = list(map(lambda s: s.position[0], traj.state_list))
     y = list(map(lambda s: s.position[1], traj.state_list))
@@ -98,8 +94,9 @@ def _calc_curvature(traj: Trajectory):
     y2 = _calc_derivative(y1, t)
 
     c = map(
-        lambda a: (a[0] * a[3] - a[2] * a[1]) / ((a[0] ** 2 + a[2] ** 2) ** 1.5) if (a[0]**2 + a[2] ** 2) ** 1.5 != 0
-        else (a[0] * a[3] - a[2] * a[1]) / 1E-7,
+        lambda a: (a[0] * a[3] - a[2] * a[1]) / ((a[0] ** 2 + a[2] ** 2) ** 1.5)
+        if (a[0] ** 2 + a[2] ** 2) ** 1.5 != 0
+        else (a[0] * a[3] - a[2] * a[1]) / 1e-7,
         zip(x1, x2, y1, y2),
     )
     c = list(c)

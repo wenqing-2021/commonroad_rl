@@ -27,16 +27,9 @@ from commonroad_rl.gym_commonroad.utils.scenario_io import get_project_root
 
 # TODO DGSM
 # TODO ff doesnt work due to padding --> workaround?
-os.environ["KMP_WARNINGS"] = "off" 
+os.environ["KMP_WARNINGS"] = "off"
 
-SAMPLER = {
-    "sobol": saltelli,
-    "fast": fast_sampler,
-    "rbd_fast": latin,
-    "morris": morris,
-    "delta": latin,
-    "ff": ff
-}
+SAMPLER = {"sobol": saltelli, "fast": fast_sampler, "rbd_fast": latin, "morris": morris, "delta": latin, "ff": ff}
 
 ANALYZERS = {
     "sobol": sobol,
@@ -44,17 +37,17 @@ ANALYZERS = {
     "rbd_fast": rbd_fast,
     "morris": morris_analyze,
     "delta": delta,
-    "ff": ff_analyze
+    "ff": ff_analyze,
 }
 
 RESULTS = {
-    "sobol": ['S1', 'S2', 'ST'],
-    "fast": ['S1', 'ST'],
-    "rbd_fast": ['S1'],
-    "morris": ['mu', 'mu_star', 'sigma', 'mu_star_conf'],
-    'delta': ['delta', 'delta_conf', 'S1', 'S1_conf'],
-    "ff": ['ME', 'IE'],
-    }
+    "sobol": ["S1", "S2", "ST"],
+    "fast": ["S1", "ST"],
+    "rbd_fast": ["S1"],
+    "morris": ["mu", "mu_star", "sigma", "mu_star_conf"],
+    "delta": ["delta", "delta_conf", "S1", "S1_conf"],
+    "ff": ["ME", "IE"],
+}
 
 
 def get_parser():
@@ -64,21 +57,32 @@ def get_parser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-n", help="Set the number of Samples to be considered", default=int(256), type=int)
     parser.add_argument("--algo", type=str, default="ppo2")
-    parser.add_argument("--method", type=str, default=None, help="Sensitivity Analysis methods: sobol, fast, rbd_fast, morris")
-    parser.add_argument("--config_filename", "-config_f", type=str, default="environment_configurations.yml", 
-                        help="Name of the configuration file, default: environement_configurations.yml")
-    parser.add_argument("--model_path", "-model", type=str, help="Path to trained model",
-                        default=PATH_PARAMS["log"] + "/ppo2/commonroad-v1_1")
-    parser.add_argument("--save_path", type=str, help="Path where the data should be saved",
-                        default=PATH_PARAMS["log"])
-    parser.add_argument("--data_path", type=str, help="Path to pickle files",
-                        default=PATH_PARAMS["pickles"])
+    parser.add_argument(
+        "--method", type=str, default=None, help="Sensitivity Analysis methods: sobol, fast, rbd_fast, morris"
+    )
+    parser.add_argument(
+        "--config_filename",
+        "-config_f",
+        type=str,
+        default="environment_configurations.yml",
+        help="Name of the configuration file, default: environement_configurations.yml",
+    )
+    parser.add_argument(
+        "--model_path",
+        "-model",
+        type=str,
+        help="Path to trained model",
+        default=PATH_PARAMS["log"] + "/ppo2/commonroad-v1_1",
+    )
+    parser.add_argument("--save_path", type=str, help="Path where the data should be saved", default=PATH_PARAMS["log"])
+    parser.add_argument("--data_path", type=str, help="Path to pickle files", default=PATH_PARAMS["pickles"])
     parser.add_argument("--save_fig", action="store_true", help="Store plots for analysis")
     parser.add_argument("--save_data", action="store_true", help="Store data for analysis as .npy files")
     parser.add_argument("--save_gif", action="store_true", help="Store data for analysis as gif")
     parser.add_argument("--n_frames", type=int, default=5)
 
     return parser
+
 
 def args_assertions(args):
     """
@@ -87,9 +91,17 @@ def args_assertions(args):
     :param args: the arguments input through the parser
     """
 
-    assert (args.n & (args.n-1) == 0) and args.n != 0, '-n given as ' + str(args.n) + ' needs to be of 2^(x) with x a natural Number'
-    assert args.method in ANALYZERS, '--method given as ' + args.method + ' is not in possible methods: sobol, fast, rbd_fast, morris'
-    assert args.algo in ALGOS, '--alorithn given as ' + args.method + ' is not in possible alorithms: a2c, acer, acktr, ddpg, her, sac, pp2, trpo, td3'
+    assert (args.n & (args.n - 1) == 0) and args.n != 0, (
+        "-n given as " + str(args.n) + " needs to be of 2^(x) with x a natural Number"
+    )
+    assert args.method in ANALYZERS, (
+        "--method given as " + args.method + " is not in possible methods: sobol, fast, rbd_fast, morris"
+    )
+    assert args.algo in ALGOS, (
+        "--alorithn given as "
+        + args.method
+        + " is not in possible alorithms: a2c, acer, acktr, ddpg, her, sac, pp2, trpo, td3"
+    )
 
 
 def open_configs_sens_bounds():
@@ -98,11 +110,11 @@ def open_configs_sens_bounds():
     PATH_PARAMS are read from constants.py
     :return: a dict with the bound stuctured as: 'name_bound': [lower_b, upper_b]
     """
-    config_file=PATH_PARAMS["configs"]["commonroad-v1"]
+    config_file = PATH_PARAMS["configs"]["commonroad-v1"]
     with open(config_file, "r") as config_file:
-            config = yaml.safe_load(config_file)
+        config = yaml.safe_load(config_file)
 
-        # Assume default environment configurations
+    # Assume default environment configurations
     return config["sensititvity_analysis_bounds"]
 
 
@@ -121,9 +133,11 @@ def load_model(model_path: str, algo: str) -> BaseRLModel:
     else:
         # find last model
         files = sorted(glob.glob(os.path.join(model_path, "rl_model*.zip")))
+
         def extract_number(f):
             s = re.findall("\d+", f)
             return (int(s[-1]) if s else -1, f)
+
         model_path = max(files, key=extract_number)
     model = [ALGOS[algo].load(model_path)]
 
@@ -137,11 +151,12 @@ def load_all_models(model_path: str, algo: str) -> BaseRLModel:
     :param model_path: Path to the trained model
     :param algo: The used RL algorithm
     """
+
     # Load all Models
     def extract_number(f):
-            s = re.findall("\d+", f)
-            return (int(s[-1]) if s else -1, f)
-        
+        s = re.findall("\d+", f)
+        return (int(s[-1]) if s else -1, f)
+
     files = sorted(glob.glob(os.path.join(model_path, "rl_model*.zip")), key=extract_number)
     models = []
     for each in files:
@@ -158,19 +173,20 @@ def load_env(args):
     :return: a Commonroad Env
     """
 
-    #Load Kwargs
+    # Load Kwargs
     env_configs = {}
     with open(os.path.join(args.model_path, "environment_configurations.yml"), "r") as config_file:
         env_configs = yaml.safe_load(config_file)
-    env_kwargs = env_configs  
+    env_kwargs = env_configs
 
     # Create environment
     # note that CommonRoadVecEnv is inherited from DummyVecEnv
-    env_kwargs['test_reset_config_path'] = args.data_path + '//problem_test'
-    env_kwargs['train_reset_config_path'] = args.data_path + '//problem_train'
-    env_kwargs['meta_scenario_path'] = args.data_path + '//meta_scenario'
+    env_kwargs["test_reset_config_path"] = args.data_path + "//problem_test"
+    env_kwargs["train_reset_config_path"] = args.data_path + "//problem_train"
+    env_kwargs["meta_scenario_path"] = args.data_path + "//meta_scenario"
     env = CommonroadEnv(**env_kwargs)
     return env
+
 
 def helper_compress_figure_labelx(labels, values):
     """
@@ -187,19 +203,20 @@ def helper_compress_figure_labelx(labels, values):
         found_similar = False
         for exis in indexdict.keys():
             if name_l.startswith(exis):
-                indexdict[exis].append(index) 
-                found_similar=True
+                indexdict[exis].append(index)
+                found_similar = True
                 break
         if not found_similar:
-            indexdict[name_l]= [index]
-    
+            indexdict[name_l] = [index]
+
     # new values
     values_new = []
 
     for indices in indexdict.values():
         values_new.append(np.average(np.abs(values[indices])))
-    
+
     return list(indexdict.keys()), np.array(values_new)
+
 
 def refactor_name_list(name_list):
     """
@@ -208,7 +225,7 @@ def refactor_name_list(name_list):
     :param name_list: list of the names associated with the observations like ['[obs1]_00', [obs2]_00', '[obs2]_01', ...]
     """
     for i, each in enumerate(name_list):
-        if each[-1] == '0' and each[-2] == '0':
+        if each[-1] == "0" and each[-2] == "0":
             name_list[i] = each[:-3]
     return name_list
 
@@ -228,7 +245,7 @@ def plot_results_1dim(labels, values, meaning, path, ylim=(-0.1, 0.4), fformat="
     plt.subplots(figsize=(breite, 8))
     plt.gcf().subplots_adjust(bottom=0.60)
 
-    plt.bar(x_pos, values, color='green')
+    plt.bar(x_pos, values, color="green")
 
     plt.xlabel("Observations")
     plt.ylabel("Sensitivity value for each Obs")
@@ -237,8 +254,7 @@ def plot_results_1dim(labels, values, meaning, path, ylim=(-0.1, 0.4), fformat="
 
     plt.ylim(1.1 * ylim[0], 1.1 * ylim[1])
 
-
-    plt.savefig(path + '/sens_analysis_' + meaning + '.' + fformat)
+    plt.savefig(path + "/sens_analysis_" + meaning + "." + fformat)
     plt.close()
 
 
@@ -249,12 +265,12 @@ def plot_results_2dim(labels, values, meaning, path, fformat="png"):
     :param labels: the names associated with the individual observations as a list
     :param values: the values associated with the individual observations as a list in the same order as the labels
     :param meaning: a string describing the meaning of the plot
-    :param path: save path    
+    :param path: save path
     """
 
     for each in labels:
-        if each[-1]  == '0' and each[-2] == '0':
-            each = each[0:-3]  
+        if each[-1] == "0" and each[-2] == "0":
+            each = each[0:-3]
 
     fig, ax = plt.subplots(figsize=(30, 30))
     im = ax.imshow(values)
@@ -267,20 +283,17 @@ def plot_results_2dim(labels, values, meaning, path, fformat="png"):
     ax.set_yticklabels(labels)
 
     # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=90, ha="right",
-            rotation_mode="anchor")
+    plt.setp(ax.get_xticklabels(), rotation=90, ha="right", rotation_mode="anchor")
 
     # Loop over data dimensions and create text annotations.
     for i in range(len(labels)):
         for j in range(len(labels)):
-            text = ax.text(j, i, round(values[i, j],2),
-                        ha="center", va="center", color="w")
+            text = ax.text(j, i, round(values[i, j], 2), ha="center", va="center", color="w")
 
     ax.set_title("Sensitivity analysis " + meaning)
     fig.tight_layout()
-    plt.savefig(path + '/sens_analysis_' + meaning + '.' + fformat)
+    plt.savefig(path + "/sens_analysis_" + meaning + "." + fformat)
     plt.close()
-
 
 
 def perform_analysis(args):
@@ -298,50 +311,42 @@ def perform_analysis(args):
     else:
         models = load_all_models(args.model_path, args.algo)
 
-
-    
     # add observation w observation bounds
     env.reset()
     obs = env.observation_dict
     num_vars = 0
-    name_list =[]
-    for key in obs:       
+    name_list = []
+    for key in obs:
         num_vars += len(obs[str(key)])
         for i in range(len(obs[str(key)])):
-            name_list.append(str(key + '_' + "{0:02}".format(i)))
-
-
+            name_list.append(str(key + "_" + "{0:02}".format(i)))
 
     # get sample bounds
     bound_list = []
     bound_configs = open_configs_sens_bounds()
     for each in name_list:
-        assert each[:-3] in bound_configs, str(each[:-3]) \
-            + ' missing bound, please add in respective section of configs (on the bottom)' 
+        assert each[:-3] in bound_configs, (
+            str(each[:-3]) + " missing bound, please add in respective section of configs (on the bottom)"
+        )
         bound_list.append(bound_configs[each[:-3]])
 
-    problem = {
-    'num_vars': num_vars,
-    'names': name_list,
-    'bounds': bound_list
-    }
+    problem = {"num_vars": num_vars, "names": name_list, "bounds": bound_list}
 
     # generate Samples
-    param_values = SAMPLER[args.method].sample(problem, args.n)  
+    param_values = SAMPLER[args.method].sample(problem, args.n)
 
-    
     # correct sampling errrors with boolean bounds
     for sample in param_values:
         for i in range(len(bound_list)):
             if True in bound_list[i]:
                 sample[i] = np.random.choice(bound_list[i])
-    
+
     if args.save_gif:
         pic_dict1 = {}
         pic_dict2 = {}
-        for each in RESULTS[args.method]: 
-                    pic_dict1[each] = []
-                    pic_dict2[each] = []   
+        for each in RESULTS[args.method]:
+            pic_dict1[each] = []
+            pic_dict2[each] = []
     values1 = []
     values2 = []
 
@@ -355,11 +360,11 @@ def perform_analysis(args):
         Model_predictions = np.array(Model_predictions, dtype=float)
         Model_predictions = np.transpose(Model_predictions)
         Y = np.zeros([param_values.shape[0]])
-        
+
         # Perform analysis
-        if args.method == 'rbd_fast' or args.method == 'morris' or args.method == 'delta' or args.method == 'ff':
+        if args.method == "rbd_fast" or args.method == "morris" or args.method == "delta" or args.method == "ff":
             Si = ANALYZERS[args.method].analyze(problem, param_values, Model_predictions[0], print_to_console=False)
-            Si2 = ANALYZERS[args.method].analyze(problem,param_values, Model_predictions[1], print_to_console=False)
+            Si2 = ANALYZERS[args.method].analyze(problem, param_values, Model_predictions[1], print_to_console=False)
         else:
             Si = ANALYZERS[args.method].analyze(problem, Model_predictions[0], print_to_console=False)
             Si2 = ANALYZERS[args.method].analyze(problem, Model_predictions[1], print_to_console=False)
@@ -370,8 +375,8 @@ def perform_analysis(args):
         name_list = refactor_name_list(name_list)
 
         if args.save_data and model == models[-1]:
-            path = os.path.join(args.save_path, 'sens_analysis_data')
-            
+            path = os.path.join(args.save_path, "sens_analysis_data")
+
             os.makedirs(path, exist_ok=True)
             saved_arrays = {
                 f"{args.method}_labels": np.asarray(name_list),
@@ -380,30 +385,30 @@ def perform_analysis(args):
                 saved_arrays[f"{args.method}_action1_{k}"] = v
             for k, v in Si.items():
                 saved_arrays[f"{args.method}_action2_{k}"] = v
-            
+
             np.savez(os.path.join(path, f"sens_analysis_{args.method}"), **saved_arrays)
 
         if args.save_fig and model == models[-1]:
             print("saving figs")
-            path = os.path.join(args.save_path, 'sens_analysis_figs')
+            path = os.path.join(args.save_path, "sens_analysis_figs")
             os.makedirs(path, exist_ok=True)
 
             for each in RESULTS[args.method]:
                 meaning1 = str(args.method + "_action1_" + each)
-                meaning2 = str(args.method + "_action2_" + each)  
-                if each == 'S2' or each == 'IE':
+                meaning2 = str(args.method + "_action2_" + each)
+                if each == "S2" or each == "IE":
                     plot_results_2dim(name_list, Si2[each], meaning2, path)
                     plot_results_2dim(name_list, Si[each], meaning1, path)
                 else:
                     plot_results_1dim(name_list, Si[each], meaning1, path, (min(Si[each]), max(Si[each])))
                     plot_results_1dim(name_list, Si2[each], meaning2, path, (min(Si2[each]), max(Si2[each])))
-        
+
         if args.save_gif:
             values1.append(Si)
             values2.append(Si2)
 
     if args.save_gif:
-        path = os.path.join(args.save_path, 'sens_analysis_figs')
+        path = os.path.join(args.save_path, "sens_analysis_figs")
 
         for each in tqdm(RESULTS[args.method], desc="Constructing gifs"):
             max_value = max(max(value[each]) for value in values1)
@@ -413,13 +418,13 @@ def perform_analysis(args):
                 next_results = values1[val_iter + 1][each]
                 dist_results = np.array(next_results) - np.array(results)
                 for i in range(0, args.n_frames + 1):
-                    interpol_results = (results + (dist_results/args.n_frames) * i)
+                    interpol_results = results + (dist_results / args.n_frames) * i
                     meaning = str(args.method + "_action1_" + each) + "_" + str(val_iter) + "_" + str(i)
-                    pic_dict1[each].append(path + '/sens_analysis_' + meaning + '.png')
+                    pic_dict1[each].append(path + "/sens_analysis_" + meaning + ".png")
                     if i == args.n_frames:
                         for j in range(0, 5):
-                            pic_dict1[each].append(path + '/sens_analysis_' + meaning + '.png')
-                    if each == 'S2' or each == 'IE':
+                            pic_dict1[each].append(path + "/sens_analysis_" + meaning + ".png")
+                    if each == "S2" or each == "IE":
                         plot_results_2dim(name_list, interpol_results, meaning, path)
                     else:
                         plot_results_1dim(name_list, interpol_results, meaning, path, ylim=(min_value, max_value))
@@ -431,22 +436,22 @@ def perform_analysis(args):
                 next_results = values2[val_iter + 1][each]
                 dist_results = np.array(next_results) - np.array(results)
                 for i in range(0, args.n_frames + 1):
-                    interpol_results = (results + (dist_results/args.n_frames) * i)
+                    interpol_results = results + (dist_results / args.n_frames) * i
                     meaning = str(args.method + "_action2_" + each) + "_" + str(val_iter) + "_" + str(i)
-                    pic_dict2[each].append(path + '/sens_analysis_' + meaning + '.png')
+                    pic_dict2[each].append(path + "/sens_analysis_" + meaning + ".png")
                     if i == args.n_frames:
                         for j in range(0, 5):
-                            pic_dict2[each].append(path + '/sens_analysis_' + meaning + '.png')
-                    if each == 'S2' or each == 'IE':
+                            pic_dict2[each].append(path + "/sens_analysis_" + meaning + ".png")
+                    if each == "S2" or each == "IE":
                         plot_results_2dim(name_list, interpol_results, meaning, path)
                     else:
                         plot_results_1dim(name_list, interpol_results, meaning, path, ylim=(min_value, max_value))
-            
-            new_path = os.path.join(path, 'gifs')
+
+            new_path = os.path.join(path, "gifs")
             os.makedirs(path, exist_ok=True)
 
-            gif_path  = new_path + "/" + each + '_action1.gif'           
-            with imageio.get_writer(gif_path, mode = 'I') as writer:
+            gif_path = new_path + "/" + each + "_action1.gif"
+            with imageio.get_writer(gif_path, mode="I") as writer:
                 for filename in tqdm(pic_dict1[each], desc=f"-Gif for first action {each}"):
                     image = imageio.imread(filename)
                     writer.append_data(image)
@@ -454,15 +459,14 @@ def perform_analysis(args):
             for filename in set(pic_dict1[each]):
                 os.remove(filename)
 
-            gif_path  = new_path + "/" + each + '_action2.gif'
-            with imageio.get_writer(gif_path, mode = 'I') as writer:
+            gif_path = new_path + "/" + each + "_action2.gif"
+            with imageio.get_writer(gif_path, mode="I") as writer:
                 for filename in tqdm(pic_dict2[each], desc=f"-Gif for second action {each}"):
                     image = imageio.imread(filename)
                     writer.append_data(image)
 
             for filename in set(pic_dict2[each]):
                 os.remove(filename)
-
 
 
 def main():
@@ -472,6 +476,7 @@ def main():
     args = get_parser().parse_args()
     args_assertions(args)
     perform_analysis(args)
+
 
 if __name__ == "__main__":
     main()

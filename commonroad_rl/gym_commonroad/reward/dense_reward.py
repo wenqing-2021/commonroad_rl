@@ -18,9 +18,10 @@ class DenseReward(Reward):
         if self.surrounding_configs["observe_lane_circ_surrounding"]:
             self.max_obs_dist = self.surrounding_configs["lane_circ_sensor_range_radius"]
         elif self.surrounding_configs["observe_lane_rect_surrounding"]:
-            self.max_obs_dist \
-                = np.sqrt((self.surrounding_configs["lane_rect_sensor_range_length"] / 2) ** 2
-                          + (self.surrounding_configs["lane_rect_sensor_range_width"] / 2) ** 2)
+            self.max_obs_dist = np.sqrt(
+                (self.surrounding_configs["lane_rect_sensor_range_length"] / 2) ** 2
+                + (self.surrounding_configs["lane_rect_sensor_range_width"] / 2) ** 2
+            )
         elif self.surrounding_configs["observe_lidar_circle_surrounding"]:
             self.max_obs_dist = self.surrounding_configs["lidar_sensor_radius"]
 
@@ -29,7 +30,7 @@ class DenseReward(Reward):
     def reset(self, observation_dict: dict, ego_action: Action):
         distance_goal_long = observation_dict["distance_goal_long"][0]
         distance_goal_lat = observation_dict["distance_goal_lat"][0]
-        self.initial_goal_dist = np.sqrt(distance_goal_long ** 2 + distance_goal_lat ** 2)
+        self.initial_goal_dist = np.sqrt(distance_goal_long**2 + distance_goal_lat**2)
 
         # Prevent cases where the ego vehicle starts in the goal region
         if self.initial_goal_dist < 1.0:
@@ -48,8 +49,10 @@ class DenseReward(Reward):
         # Calculate normalized distance to obstacles as a positive reward
         # Lane-based
         rel_pos = []
-        if self.surrounding_configs["observe_lane_rect_surrounding"] or \
-                self.surrounding_configs["observe_lane_circ_surrounding"]:
+        if (
+            self.surrounding_configs["observe_lane_rect_surrounding"]
+            or self.surrounding_configs["observe_lane_circ_surrounding"]
+        ):
             rel_pos += observation_dict["lane_based_p_rel"].tolist()
 
         if len(rel_pos) == 0:
@@ -58,8 +61,11 @@ class DenseReward(Reward):
             # Minus 5 meters from each of the lane-based relative positions,
             # to get approximately minimal distances between vehicles,
             # instead of exact distances between centers of vehicles
-            r_obs_lane = (self.reward_configs["reward_obs_distance_coefficient"] * (
-                    np.sum(rel_pos) - 5.0 * len(rel_pos)) / (self.max_obs_dist * len(rel_pos)))
+            r_obs_lane = (
+                self.reward_configs["reward_obs_distance_coefficient"]
+                * (np.sum(rel_pos) - 5.0 * len(rel_pos))
+                / (self.max_obs_dist * len(rel_pos))
+            )
 
         # Lidar-based
         dist = []
@@ -69,12 +75,14 @@ class DenseReward(Reward):
         if len(dist) == 0:
             r_obs_lidar = 0.0
         else:
-            r_obs_lidar = (self.reward_configs["reward_obs_distance_coefficient"] * np.sum(dist) / (
-                    self.max_obs_dist * len(dist)))
+            r_obs_lidar = (
+                self.reward_configs["reward_obs_distance_coefficient"] * np.sum(dist) / (self.max_obs_dist * len(dist))
+            )
 
         # Calculate normalized distance to goal as a negative reward
-        dist_goal = np.sqrt(observation_dict["distance_goal_long"][0] ** 2
-                            + observation_dict["distance_goal_lat"][0] ** 2)
+        dist_goal = np.sqrt(
+            observation_dict["distance_goal_long"][0] ** 2 + observation_dict["distance_goal_lat"][0] ** 2
+        )
         r_goal = -self.reward_configs["reward_goal_distance_coefficient"] * dist_goal / self.initial_goal_dist
 
         return r_obs_lane + r_obs_lidar + r_goal

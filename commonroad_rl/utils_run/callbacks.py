@@ -13,6 +13,8 @@ from stable_baselines.common.vec_env import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
 # from commonroad_rl.train_model import construct_logger
 # dirty fix, TODO: investivate why can not import from train_model.py
 def construct_logger(logging_mode: int, save_path: str, logger):
@@ -45,9 +47,17 @@ class HyperparamsTrialEvalCallback(EvalCallback):
     Callback used for evaluating and reporting a trial during model hyperparameter optimization.
     """
 
-    def __init__(self, eval_env, trial, n_eval_episodes=5, eval_freq=10000, log_path=None,
-                 best_model_save_path=None, deterministic=True, verbose=1):
-
+    def __init__(
+        self,
+        eval_env,
+        trial,
+        n_eval_episodes=5,
+        eval_freq=10000,
+        log_path=None,
+        best_model_save_path=None,
+        deterministic=True,
+        verbose=1,
+    ):
         best_model_save_path = construct_path_with_trial_number(best_model_save_path, trial.number)
         log_path = construct_path_with_trial_number(log_path, trial.number)
 
@@ -86,15 +96,15 @@ class ObservationConfigsTrialEvalCallback(EvalCallback):
     """
 
     def __init__(
-            self,
-            eval_env,
-            trial,
-            n_eval_episodes=5,
-            eval_freq=10000,
-            log_path=None,
-            best_model_save_path=None,
-            deterministic=True,
-            verbose=1,
+        self,
+        eval_env,
+        trial,
+        n_eval_episodes=5,
+        eval_freq=10000,
+        log_path=None,
+        best_model_save_path=None,
+        deterministic=True,
+        verbose=1,
     ):
         best_model_save_path = construct_path_with_trial_number(best_model_save_path, trial.number)
         log_path = construct_path_with_trial_number(log_path, trial.number)
@@ -132,15 +142,15 @@ class RewardConfigsTrialEvalCallback(EvalCallback):
     """
 
     def __init__(
-            self,
-            eval_env,
-            trial,
-            n_eval_episodes=5,
-            eval_freq=1000,
-            log_path=None,
-            best_model_save_path=None,
-            deterministic=True,
-            verbose=1,
+        self,
+        eval_env,
+        trial,
+        n_eval_episodes=5,
+        eval_freq=1000,
+        log_path=None,
+        best_model_save_path=None,
+        deterministic=True,
+        verbose=1,
     ):
         # Set save path and logger
         map_verbose_to_logging = {2: logging.DEBUG, 1: logging.INFO}
@@ -149,11 +159,13 @@ class RewardConfigsTrialEvalCallback(EvalCallback):
         self.best_model_save_path = construct_path_with_trial_number(best_model_save_path, trial.number)
         construct_logger(map_verbose_to_logging.get(verbose, logging.ERROR), self.log_path, LOGGER)
 
-        super(RewardConfigsTrialEvalCallback, self).__init__(eval_env=eval_env,
-                                                             n_eval_episodes=n_eval_episodes,
-                                                             eval_freq=eval_freq,
-                                                             deterministic=deterministic,
-                                                             verbose=verbose)
+        super(RewardConfigsTrialEvalCallback, self).__init__(
+            eval_env=eval_env,
+            n_eval_episodes=n_eval_episodes,
+            eval_freq=eval_freq,
+            deterministic=deterministic,
+            verbose=verbose,
+        )
         self.trial = trial
         self.eval_idx = 0
         self.is_pruned = False
@@ -195,7 +207,7 @@ class RewardConfigsTrialEvalCallback(EvalCallback):
                     # Since vectorized environments get reset automatically after each episode,
                     # we have to keep a copy of the relevant states here.
                     # See https://stable-baselines.readthedocs.io/en/master/guide/vec_envs.html for more details.
-                    episode_length, episode_cost = 0, 0.
+                    episode_length, episode_cost = 0, 0.0
                     episode_is_time_out = []
                     episode_is_collision = []
                     episode_is_off_road = []
@@ -227,7 +239,7 @@ class RewardConfigsTrialEvalCallback(EvalCallback):
                         episode_cost += 10.0  # * (1 / normalized_episode_length)
                     if episode_is_friction_violation[-1]:
                         episode_cost += (
-                                10.0 * episode_is_friction_violation[-1] / episode_length
+                            10.0 * episode_is_friction_violation[-1] / episode_length
                         )  # * (1 / normalized_episode_length)
                     if episode_is_goal_reached[-1]:
                         episode_cost -= 10.0  # * normalized_episode_length
@@ -289,16 +301,16 @@ class MultiEnvsEvalCallback(EventCallback):
     """
 
     def __init__(
-            self,
-            eval_env: Union[gym.Env, VecEnv],
-            callback_on_new_best: Optional[BaseCallback] = None,
-            log_path: str = None,
-            best_model_save_path: str = None,
-            eval_freq: int = 1000,
-            n_eval_timesteps: int = 1000,
-            deterministic: bool = True,
-            render: bool = False,
-            verbose: int = 2,
+        self,
+        eval_env: Union[gym.Env, VecEnv],
+        callback_on_new_best: Optional[BaseCallback] = None,
+        log_path: str = None,
+        best_model_save_path: str = None,
+        eval_freq: int = 1000,
+        n_eval_timesteps: int = 1000,
+        deterministic: bool = True,
+        render: bool = False,
+        verbose: int = 2,
     ):
         # Set basics
         super(MultiEnvsEvalCallback, self).__init__(callback_on_new_best, verbose=verbose)
@@ -333,16 +345,15 @@ class MultiEnvsEvalCallback(EventCallback):
             warnings.warn(f"Training and eval env are not of the same type {self.training_env} != {self.eval_env}")
 
     def _on_step(self) -> bool:
-
         if self.eval_freq > 0 and self.n_calls % self.eval_freq == 0:
 
             def evaluate_policy_multi_envs(
-                    model: "BaseRLModel",
-                    env: Union[gym.Env, VecEnv],
-                    n_eval_timesteps: int = 1000,
-                    deterministic: bool = True,
-                    render: bool = False,
-                    callback: Optional[Callable] = None,
+                model: "BaseRLModel",
+                env: Union[gym.Env, VecEnv],
+                n_eval_timesteps: int = 1000,
+                deterministic: bool = True,
+                render: bool = False,
+                callback: Optional[Callable] = None,
             ) -> Tuple[List[float], List[int]]:
                 """
                 Runs policy on `env.num_envs` environments until `n_eval_timesteps` timesteps have been collected asynchronously,,
@@ -403,18 +414,20 @@ class MultiEnvsEvalCallback(EventCallback):
             # Sync training and evaluating envs if there is VecNormalize
             sync_envs_normalization(self.training_env, self.eval_env)
 
-            episode_rewards, episode_lengths = evaluate_policy_multi_envs(self.model,
-                                                                          self.eval_env,
-                                                                          self.n_eval_timesteps,
-                                                                          self.deterministic,
-                                                                          self.render)
+            episode_rewards, episode_lengths = evaluate_policy_multi_envs(
+                self.model, self.eval_env, self.n_eval_timesteps, self.deterministic, self.render
+            )
 
             if self.log_path is not None:
                 self.evaluations_timesteps.append(self.num_timesteps)
                 self.evaluations_results.append(episode_rewards)
                 self.evaluations_lengths.append(episode_lengths)
-                np.savez(self.log_path, timesteps=self.evaluations_timesteps,
-                         results=self.evaluations_results, ep_lengths=self.evaluations_lengths)
+                np.savez(
+                    self.log_path,
+                    timesteps=self.evaluations_timesteps,
+                    results=self.evaluations_results,
+                    ep_lengths=self.evaluations_lengths,
+                )
 
             mean_reward, std_reward = np.mean(episode_rewards), np.std(episode_rewards)
             mean_ep_length, std_ep_length = np.mean(episode_lengths), np.std(episode_lengths)
@@ -422,8 +435,11 @@ class MultiEnvsEvalCallback(EventCallback):
             # Keep track of the last evaluation, useful for classes that derive from this callback
             self.last_mean_reward = mean_reward
 
-            LOGGER.info("Eval num_timesteps={}, episode_reward={:.2f} +/- {:.2f}".format(
-                self.num_timesteps, mean_reward, std_reward))
+            LOGGER.info(
+                "Eval num_timesteps={}, episode_reward={:.2f} +/- {:.2f}".format(
+                    self.num_timesteps, mean_reward, std_reward
+                )
+            )
             LOGGER.info("Episode length: {:.2f} +/- {:.2f}".format(mean_ep_length, std_ep_length))
 
             if mean_reward > self.best_mean_reward:

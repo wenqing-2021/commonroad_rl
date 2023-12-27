@@ -8,12 +8,16 @@ from shutil import copyfile
 
 
 def get_args():
-    parser = argparse.ArgumentParser(description="Divide scenarios into test and training scenarios",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--input_dir", "-i", type=str,
-                        default="/home/wangx/data/highD-dataset-v1.0/cr_scenarios/pickle/problem")
-    parser.add_argument("--output_dir", "-o", type=str,
-                        default="/home/wangx/data/highD-dataset-v1.0/cr_scenarios/pickle")
+    parser = argparse.ArgumentParser(
+        description="Divide scenarios into test and training scenarios",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--input_dir", "-i", type=str, default="/home/wangx/data/highD-dataset-v1.0/cr_scenarios/pickle/problem"
+    )
+    parser.add_argument(
+        "--output_dir", "-o", type=str, default="/home/wangx/data/highD-dataset-v1.0/cr_scenarios/pickle"
+    )
 
     return parser.parse_args()
 

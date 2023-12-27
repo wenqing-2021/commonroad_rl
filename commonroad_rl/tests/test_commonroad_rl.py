@@ -33,10 +33,7 @@ def run_overfit(test_batch, goal_relaxation, num_of_steps, env_id):
     solution_path = os.path.join(output_base_path, "solutions")
 
     # Pickle CommonRoad scenarios
-    pickle_xml_scenarios(
-        input_dir=xml_scenarios_path,
-        output_dir=pickle_path
-    )
+    pickle_xml_scenarios(input_dir=xml_scenarios_path, output_dir=pickle_path)
 
     # Overfit model
     meta_scenario_path = os.path.join(pickle_path, "meta_scenario")
@@ -61,8 +58,10 @@ def run_overfit(test_batch, goal_relaxation, num_of_steps, env_id):
         # TODO: force other necessary settings for this scenario
         args_str += "surrounding_configs:{'observe_lane_circ_surrounding':" + f"{True}" + "}"
         args_str += " surrounding_configs:{'observe_lidar_circle_surrounding':" + f"{False}" + "}"
-        args_str += " reward_configs_hybrid:{'reward_get_close_coefficient':2.," \
-                    "'reward_goal_reached':1000.,'reward_collision':-1000.}"
+        args_str += (
+            " reward_configs_hybrid:{'reward_get_close_coefficient':2.,"
+            "'reward_goal_reached':1000.,'reward_collision':-1000.}"
+        )
         args_str += " vehicle_params:{'vehicle_type':2,'vehicle_model':0}"
 
     args = run_stable_baselines_argsparser().parse_args(args_str.split(sep=" "))
@@ -79,15 +78,15 @@ def run_overfit(test_batch, goal_relaxation, num_of_steps, env_id):
         solution_path=solution_path,
         cost_function=cost_function,
         env_id=env_id,
-        render=False, model_name="commonroad-v1"
+        render=False,
+        model_name="commonroad-v1",
     )
 
     assert all(results), f"not all overfit scenarios solved: {results}"
 
 
 @pytest.mark.parametrize(
-    ("env_id", "test_batch", "goal_relaxation", "num_of_steps"),
-    [("commonroad-v1", "DEU_A9-2_1_T-1", False, 6000)]
+    ("env_id", "test_batch", "goal_relaxation", "num_of_steps"), [("commonroad-v1", "DEU_A9-2_1_T-1", False, 6000)]
 )
 @functional
 @integration_test

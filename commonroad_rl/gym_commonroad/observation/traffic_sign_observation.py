@@ -40,42 +40,62 @@ class TrafficSignObservation(Observation):
 
         if self.observe_priority_sign:
             observation_space_dict["priority_sign"] = gym.spaces.Box(0, 1, (1,), dtype=np.int8)
-            observation_space_dict["priority_sign_distance_long"] = gym.spaces.Box(-np.inf, np.inf, (1,),
-                                                                                   dtype=np.float32)
+            observation_space_dict["priority_sign_distance_long"] = gym.spaces.Box(
+                -np.inf, np.inf, (1,), dtype=np.float32
+            )
         if self.observe_right_of_way_sign:
             observation_space_dict["right_of_way_sign"] = gym.spaces.Box(0, 1, (1,), dtype=np.int8)
-            observation_space_dict["right_of_way_sign_distance_long"] = gym.spaces.Box(-np.inf, np.inf, (1,),
-                                                                                       dtype=np.float32)
+            observation_space_dict["right_of_way_sign_distance_long"] = gym.spaces.Box(
+                -np.inf, np.inf, (1,), dtype=np.float32
+            )
         return observation_space_dict
 
-    def observe(self, scenario: Scenario, ego_vehicle: Vehicle, ego_vehicle_lanelet: Lanelet,
-                local_ccosy: Union[None, CurvilinearCoordinateSystem] = None) -> Union[ndarray, Dict]:
+    def observe(
+        self,
+        scenario: Scenario,
+        ego_vehicle: Vehicle,
+        ego_vehicle_lanelet: Lanelet,
+        local_ccosy: Union[None, CurvilinearCoordinateSystem] = None,
+    ) -> Union[ndarray, Dict]:
         """
         Create traffic sign observation for given state in an environment.
         """
-        self.traffic_sign_id_list, self.traffic_sign_id_list_successor = \
-            self._get_traffic_signs_on_lanelet_and_successor(scenario, ego_vehicle_lanelet)
+        (
+            self.traffic_sign_id_list,
+            self.traffic_sign_id_list_successor,
+        ) = self._get_traffic_signs_on_lanelet_and_successor(scenario, ego_vehicle_lanelet)
 
         if self.observe_stop_sign:
-            self._observe_traffic_sign("stop_sign", TrafficSignIDGermany.STOP, ego_vehicle,
-                                       ego_vehicle_lanelet, scenario, True)
+            self._observe_traffic_sign(
+                "stop_sign", TrafficSignIDGermany.STOP, ego_vehicle, ego_vehicle_lanelet, scenario, True
+            )
 
         if self.observe_yield_sign:
-            self._observe_traffic_sign("yield_sign", TrafficSignIDGermany.YIELD, ego_vehicle,
-                                       ego_vehicle_lanelet, scenario, True)
+            self._observe_traffic_sign(
+                "yield_sign", TrafficSignIDGermany.YIELD, ego_vehicle, ego_vehicle_lanelet, scenario, True
+            )
 
         if self.observe_priority_sign:
-            self._observe_traffic_sign("priority_sign", TrafficSignIDGermany.PRIORITY, ego_vehicle,
-                                       ego_vehicle_lanelet, scenario)
+            self._observe_traffic_sign(
+                "priority_sign", TrafficSignIDGermany.PRIORITY, ego_vehicle, ego_vehicle_lanelet, scenario
+            )
 
         if self.observe_right_of_way_sign:
-            self._observe_traffic_sign("right_of_way_sign", TrafficSignIDGermany.RIGHT_OF_WAY, ego_vehicle,
-                                       ego_vehicle_lanelet, scenario)
+            self._observe_traffic_sign(
+                "right_of_way_sign", TrafficSignIDGermany.RIGHT_OF_WAY, ego_vehicle, ego_vehicle_lanelet, scenario
+            )
 
         return self.observation_dict
 
-    def _observe_traffic_sign(self, sign_entry: str, sign_type: TrafficSignIDGermany, ego_vehicle: Vehicle,
-                              ego_vehicle_lanelet: Lanelet, scenario: Scenario, successor=False):
+    def _observe_traffic_sign(
+        self,
+        sign_entry: str,
+        sign_type: TrafficSignIDGermany,
+        ego_vehicle: Vehicle,
+        ego_vehicle_lanelet: Lanelet,
+        scenario: Scenario,
+        successor=False,
+    ):
         """
         finds traffic sign in the current or successor lanelets and distance to the sign (-1 if not present)
         :param sign_entry: sign entry name in the observation dictionary
@@ -97,15 +117,16 @@ class TrafficSignObservation(Observation):
                 self.observation_dict[sign_entry] = np.array([1])
 
                 # calculate distance from ego vehicle head to the forward boundary of current lanelet
-                forward_distance = self.get_distance_to_traffic_sign_long(scenario, ego_vehicle,
-                                                                          ego_vehicle_lanelet, sign, successor)
+                forward_distance = self.get_distance_to_traffic_sign_long(
+                    scenario, ego_vehicle, ego_vehicle_lanelet, sign, successor
+                )
                 self.observation_dict[sign_distance_entry] = np.array([forward_distance])
                 return
 
     @staticmethod
-    def get_distance_to_traffic_sign_long(scenario: Scenario, ego_vehicle: Vehicle,
-                                          ego_vehicle_lanelet: Lanelet,
-                                          sign: TrafficSign, successor=False) -> float:
+    def get_distance_to_traffic_sign_long(
+        scenario: Scenario, ego_vehicle: Vehicle, ego_vehicle_lanelet: Lanelet, sign: TrafficSign, successor=False
+    ) -> float:
         """
         get distance from the head of ego vehicle to forward boundary of current lanelet
         :param scenario: current scenario
@@ -117,16 +138,18 @@ class TrafficSignObservation(Observation):
         :return: distance from ego vehicle to forward boundary, returns -1.0 if the sign could not be found
         """
         # Check for stop line in ego and successor lanelets
-        stop_line_present = \
+        stop_line_present = (
             ego_vehicle_lanelet.stop_line and ego_vehicle_lanelet.stop_line.traffic_sign_ref == sign.traffic_sign_id
+        )
         if stop_line_present:
             stop_line = ego_vehicle_lanelet.stop_line
             forward_boundary = LineString((stop_line.start, stop_line.end))
         elif successor:
             for suc_id in ego_vehicle_lanelet.successor:
                 suc_lanelet = scenario.lanelet_network.find_lanelet_by_id(suc_id)
-                stop_line_present = \
+                stop_line_present = (
                     suc_lanelet.stop_line and suc_lanelet.stop_line.traffic_sign_ref == sign.traffic_sign_id
+                )
                 if stop_line_present:
                     stop_line = suc_lanelet.stop_line
                     forward_boundary = LineString((stop_line.start, stop_line.end))
@@ -135,7 +158,8 @@ class TrafficSignObservation(Observation):
         if not stop_line_present:
             if sign.traffic_sign_id in ego_vehicle_lanelet.traffic_signs:
                 forward_boundary = LineString(
-                    (ego_vehicle_lanelet.right_vertices[-1], ego_vehicle_lanelet.left_vertices[-1]))
+                    (ego_vehicle_lanelet.right_vertices[-1], ego_vehicle_lanelet.left_vertices[-1])
+                )
             elif successor:
                 for suc_id in ego_vehicle_lanelet.successor:
                     suc_lanelet = scenario.lanelet_network.find_lanelet_by_id(suc_id)
@@ -159,8 +183,9 @@ class TrafficSignObservation(Observation):
 
         return abs(forward_distance)
 
-    def _get_traffic_signs_on_lanelet_and_successor(self, scenario: Scenario, ego_vehicle_lanelet: Lanelet) \
-            -> Tuple[List[int], List[int]]:
+    def _get_traffic_signs_on_lanelet_and_successor(
+        self, scenario: Scenario, ego_vehicle_lanelet: Lanelet
+    ) -> Tuple[List[int], List[int]]:
         """
         get traffic signs which located on current and successor lanelets
         :param scenario: the current scenario

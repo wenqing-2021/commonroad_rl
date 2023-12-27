@@ -12,15 +12,11 @@ from memory_profiler import profile
 def load_scenarios(path):
     storage = []
 
-    meta_scenario_reset_dict_path = os.path.join(
-        path, "meta_scenario", "meta_scenario_reset_dict.pickle"
-    )
+    meta_scenario_reset_dict_path = os.path.join(path, "meta_scenario", "meta_scenario_reset_dict.pickle")
     with open(meta_scenario_reset_dict_path, "rb") as f:
         storage.append(pickle.load(f))
 
-    problem_meta_scenario_dict_path = os.path.join(
-        path, "meta_scenario", "problem_meta_scenario_dict.pickle"
-    )
+    problem_meta_scenario_dict_path = os.path.join(path, "meta_scenario", "problem_meta_scenario_dict.pickle")
     with open(problem_meta_scenario_dict_path, "rb") as f:
         storage.append(pickle.load(f))
 
