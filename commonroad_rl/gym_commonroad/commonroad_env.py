@@ -213,26 +213,43 @@ class CommonroadEnv(gym.Env):
     def seed(self, seed=Union[None, int]):
         self.action_space.seed(seed)
 
-    def reset_planning_problem(self, benchmark_id=None, scenario=None, planning_problem=None):
+    def reset_planning_problem(
+        self,
+        benchmark_id=None,
+        planning_problem_id=None,
+        scenario=None,
+        planning_problem=None,
+    ):
         # initial
         if self.benchmark_id is None:
-            self._set_scenario_problem(benchmark_id, scenario=scenario, planning_problem=planning_problem)
+            self._set_scenario_problem(
+                benchmark_id=benchmark_id,
+                planning_problem_id=planning_problem_id,
+                scenario=scenario,
+                planning_problem=planning_problem,
+            )
         else:
             if benchmark_id is not None and benchmark_id != self.benchmark_id:
-                self._set_scenario_problem(benchmark_id, scenario=scenario, planning_problem=planning_problem)
+                self._set_scenario_problem(
+                    benchmark_id=benchmark_id,
+                    planning_problem_id=planning_problem_id,
+                    scenario=scenario,
+                    planning_problem=planning_problem,
+                )
             else:
-                if not self._set_planning_problem():
+                if not self._set_planning_problem(planning_problem_id=planning_problem_id):
+                    # this case mean: the problem in this scenario has been explored, and we need to change the scenario
                     self._set_scenario_problem(
                         benchmark_id,
+                        planning_problem_id=planning_problem_id,
                         scenario=scenario,
                         planning_problem=planning_problem,
                     )
 
     def reset(
         self,
-        benchmark_id=None,
-        scenario: Scenario = None,
-        planning_problem: PlanningProblem = None,
+        seed=1,
+        options: dict = None,
     ) -> np.ndarray:
         """
         Reset the environment.
@@ -241,9 +258,24 @@ class CommonroadEnv(gym.Env):
 
         :return: observation
         """
+        super().reset(seed=seed)
+        benchmark_id = None
+        planning_problem_id = None
+        scenario: Scenario = None
+        planning_problem: PlanningProblem = None
+        if options is not None:
+            if "benchmark_id" in options:
+                benchmark_id = options["benchmark_id"]
+            if "planning_problem_id" in options:
+                planning_problem_id = options["planning_problem_id"]
+            if "scenario" in options:
+                scenario = options["scenario"]
+            if "planning_problem" in options:
+                planning_problem = options["planning_problem"]
         while True:
             self.reset_planning_problem(
                 benchmark_id=benchmark_id,
+                planning_problem_id=planning_problem_id,
                 scenario=scenario,
                 planning_problem=planning_problem,
             )
@@ -279,7 +311,6 @@ class CommonroadEnv(gym.Env):
         # TODO: tmp store all observations in info for paper draft, remove afterwards
         self.observation_list = [self.observation_dict]
         self.ego_action.reset(
-            self.planning_problem.initial_state,
             self.scenario.dt,
             local_ccosy=self.observation_collector.local_ccosy,
         )
@@ -560,21 +591,40 @@ class CommonroadEnv(gym.Env):
             self._planning_problems_queue.put(key_i)
         self.planning_problem_set_dict = problem_dict["planning_problem_set"].planning_problem_dict
 
-    def _set_planning_problem(self) -> bool:
+    def _set_planning_problem(self, planning_problem_id=None) -> bool:
         """
         Select a planning problem from the defined planning problem set.
         return: if all planning problem has used, return False, else True.
         """
         if not self._planning_problems_queue.empty():
-            pb_key = self._planning_problems_queue.get()
-            self.planning_problem: PlanningProblem = self.planning_problem_set_dict[pb_key]
-            return True
+            # find the target id
+            if planning_problem_id is not None:
+                find_id = False
+                temp_queue = Queue()
+                while not self._planning_problems_queue.empty():
+                    queue_id = self._planning_problems_queue.get()
+                    temp_queue.put(queue_id)
+                    if queue_id == planning_problem_id:
+                        find_id = True
+                while not temp_queue.empty():
+                    self._planning_problems_queue.put(temp_queue.get())
+
+                if find_id:
+                    self.planning_problem: PlanningProblem = self.planning_problem_set_dict[planning_problem_id]
+                    return True
+                else:
+                    return False
+            else:
+                pb_key = self._planning_problems_queue.get()
+                self.planning_problem: PlanningProblem = self.planning_problem_set_dict[pb_key]
+                return True
         else:
             return False
 
     def _set_scenario_problem(
         self,
         benchmark_id=None,
+        planning_problem_id=None,
         scenario: Scenario = None,
         planning_problem: PlanningProblem = None,
     ) -> None:
@@ -583,7 +633,7 @@ class CommonroadEnv(gym.Env):
 
         :return: None
         """
-        if scenario is None or planning_problem is None:
+        if scenario is None:
             if benchmark_id is not None:
                 self.benchmark_id = benchmark_id
                 problem_dict = self.all_problem_dict[benchmark_id]
@@ -609,7 +659,10 @@ class CommonroadEnv(gym.Env):
                 problem_dict["obstacle"],
                 scenario_id,
             )
-            self._set_planning_problem()
+            if planning_problem is None:
+                self._set_planning_problem(planning_problem_id=planning_problem_id)
+            else:
+                self.planning_problem: PlanningProblem = planning_problem
         else:
             # NOTE: NOT USE in the code running
             # TODO: calculate reset_config online

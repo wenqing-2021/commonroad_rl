@@ -358,11 +358,10 @@ class ParameterAction(ContinuousAction):
 
     def reset(
         self,
-        initial_state: State,
         dt: float,
         local_ccosy: CurvilinearCoordinateSystem = None,
     ) -> None:
-        # self.vehicle.reset(initial_state, self.controller.control_dt)
+        # ego vehicle reset has been done in the environment
         self._scenario_dt = dt
         self._set_rescale_factors()
         self.planner.reset(self.params_range["max_plan_time"], self._scenario_dt, local_ccosy)

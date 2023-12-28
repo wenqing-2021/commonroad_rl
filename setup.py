@@ -13,9 +13,7 @@ except ImportError:
 setup(
     name="commonroad-rl",
     version="2023.1",
-    packages=find_packages(
-        exclude=["tests", "utils_run"]
-    ),
+    packages=find_packages(exclude=["tests", "utils_run"]),
     package_data={"": ["*.xml", "*.pickle"]},
     description="Tools for applying reinforcement learning on commonroad scenarios.",
     long_description=open("README.md", encoding="utf8").read(),
@@ -32,6 +30,6 @@ setup(
         "Intended Audience :: Science/Research",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.7",
-        "Operating System :: POSIX :: Linux"
+        "Operating System :: POSIX :: Linux",
     ],
 )
