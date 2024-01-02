@@ -326,13 +326,14 @@ class CommonroadEnv(gym.Env):
     def current_step(self, time_step):
         raise ValueError(f"<CommonroadEnv> Set current_step is prohibited!")
 
-    def step(self, action: Union[np.ndarray, State]) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: Union[np.ndarray, State, Tuple]) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Propagate to next time step, compute next observations, reward and status.
 
         :param action: vehicle acceleration, vehicle steering velocity
         :return: observation, reward, status and other information
         """
+        action, risk_info = action
         if isinstance(action, State):
             # set ego_state directly
             ego_state = action
@@ -454,6 +455,9 @@ class CommonroadEnv(gym.Env):
         if self.draw_params is None:
             print("draw params is None, cannot render")
             return
+        if "vec_env_show" in kwargs.keys():
+            if kwargs["vec_env_show"]:
+                self.cr_render.clear(True)
         if isinstance(self.draw_params, dict):
             self.draw_params.update(
                 {
@@ -575,7 +579,19 @@ class CommonroadEnv(gym.Env):
                     y - range[1],
                     y + range[1],
                 ]
-            self.cr_render.render(show=True, filename=filename, keep_static_artists=True)
+
+            if "vec_env_show" in kwargs.keys():
+                if kwargs["vec_env_show"]:
+                    result = {
+                        "render": self.cr_render,
+                        "filename": filename,
+                        "keep_static_artists": True,
+                    }
+                    return result
+                else:
+                    return None
+            else:
+                self.cr_render.render(show=True, filename=filename, keep_static_artists=True)
 
         # =================================================================================================================
         #
