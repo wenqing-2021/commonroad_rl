@@ -725,3 +725,17 @@ class CommonroadEnv(gym.Env):
         )
 
         return ttc_follow, ttc_lead
+
+    @staticmethod
+    def render_vec_env(env: gym.vector.VectorEnv = None, risk_result=None):
+        env_render_list = env.call("render", vec_env_show=True)
+        for render_dict in env_render_list:
+            if render_dict is not None:
+                render = render_dict["render"]
+                render.render(
+                    show=True,
+                    filename=render_dict["filename"],
+                    keep_static_artists=render_dict["keep_static_artists"],
+                )
+            else:
+                raise ValueError("render_dict is None, check the render function in ComonroadEnv")
