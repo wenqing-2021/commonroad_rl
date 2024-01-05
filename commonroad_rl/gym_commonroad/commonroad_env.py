@@ -24,11 +24,15 @@ from commonroad.scenario.trajectory import (
     InitialState,
     Trajectory,
     STState,
-    TrajectoryParams,
 )
 from commonroad.planning.planning_problem import PlanningProblem
 from commonroad.visualization.mp_renderer import MPRenderer
-from commonroad.visualization.draw_params import MPDrawParams, DynamicObstacleParams
+from commonroad.visualization.draw_params import (
+    MPDrawParams,
+    DynamicObstacleParams,
+    TrajectoryParams,
+    ShapeParams,
+)
 from commonroad.scenario.obstacle import DynamicObstacle, ObstacleType
 
 # import from commonroad-rl
@@ -281,6 +285,7 @@ class CommonroadEnv(gym.Env):
             )
             try:
                 LOGGER.debug(f"benchmark id is {self.benchmark_id}")
+                LOGGER.debug(f"planning problem id is {self.planning_problem.planning_problem_id}")
                 self.reset_config.update({"enlarge_goal": self._enlarge_goal})
                 self.observation_collector.reset(
                     self.scenario,
@@ -727,11 +732,16 @@ class CommonroadEnv(gym.Env):
         return ttc_follow, ttc_lead
 
     @staticmethod
-    def render_vec_env(env: gym.vector.VectorEnv = None, risk_result=None):
+    def render_vec_env(env: gym.vector.VectorEnv = None, risk_result_list=None):
         env_render_list = env.call("render", vec_env_show=True)
-        for render_dict in env_render_list:
+        if risk_result_list is None:
+            risk_result_list = [None] * len(env_render_list)
+        for render_dict, risk_result in zip(env_render_list, risk_result_list):
             if render_dict is not None:
                 render = render_dict["render"]
+                # show risk result
+                if risk_result is not None:
+                    CommonroadEnv.render_risk_result(risk_result, render)
                 render.render(
                     show=True,
                     filename=render_dict["filename"],
@@ -739,3 +749,41 @@ class CommonroadEnv(gym.Env):
                 )
             else:
                 raise ValueError("render_dict is None, check the render function in ComonroadEnv")
+
+    @staticmethod
+    def render_risk_result(risk_result=None, render=None):
+        # get vehicle risk field result
+        vehicle_risk_field_list = risk_result.vehicle_risk_field_list
+        for vehicle_risk_field in vehicle_risk_field_list:
+            # get the original trajectory of the surrounding vehicles
+            original_traj = vehicle_risk_field.original_traj
+            # construct trajectory for visualization
+            traj_state_list = []
+            for index, pts in enumerate(original_traj):
+                traj_state_list.append(STState(time_step=index, position=pts))
+            trajectory = Trajectory(initial_time_step=0, state_list=traj_state_list)
+            trajectory_viz_params = TrajectoryParams(
+                time_begin=0,
+                time_end=len(original_traj),
+                draw_continuous=True,
+                line_width=1.5,
+                facecolor="green",
+            )
+            render.draw_trajectory(trajectory, trajectory_viz_params)
+            particals = vehicle_risk_field.particals
+            risk_p = particals[2, :, :]
+            risk_x = particals[0, :, :]
+            risk_y = particals[1, :, :]
+            row, col = risk_p.shape
+            for i in range(row):
+                for j in range(col):
+                    center_x = risk_x[i, j]
+                    center_y = risk_y[i, j]
+                    risk = risk_p[i, j]
+                    circle_viz_params = ShapeParams(opacity=risk, facecolor="blue", edgecolor="blue")
+                    render.draw_ellipse(
+                        center=[center_x, center_y],
+                        radius_x=0.25,
+                        radius_y=0.25,
+                        draw_params=circle_viz_params,
+                    )
