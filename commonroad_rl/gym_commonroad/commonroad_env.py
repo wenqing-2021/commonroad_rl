@@ -338,7 +338,10 @@ class CommonroadEnv(gym.Env):
         :param action: vehicle acceleration, vehicle steering velocity
         :return: observation, reward, status and other information
         """
-        action, risk_info = action
+        # check the action has risk result
+        if isinstance(action, Tuple):
+            action, risk_info = action
+
         if isinstance(action, State):
             # set ego_state directly
             ego_state = action
