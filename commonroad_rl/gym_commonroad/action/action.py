@@ -392,6 +392,12 @@ class ParameterAction(ContinuousAction):
             ]
         )
 
+    def step_plan_traj(self, action: np.ndarray, logger: logging.Logger = None):
+        rescaled_action = self.rescale_action(action)
+        trajectory = self.planner.PlanTraj(vehicle=self.vehicle, rescaled_action=rescaled_action, logger=logger)
+
+        return trajectory
+
     def step(
         self,
         action: Union[np.ndarray, int],

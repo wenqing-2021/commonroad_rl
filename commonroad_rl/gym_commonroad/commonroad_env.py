@@ -186,6 +186,7 @@ class CommonroadEnv(gym.Env):
 
         self.ego_action: ParameterAction = action_constrcut_results[0]
         self.action_space = action_constrcut_results[1]
+        self.ilqr_trajectory = None
 
         # Observation space
         self.observation_collector = ObservationCollector(self.configs)
@@ -319,6 +320,7 @@ class CommonroadEnv(gym.Env):
             self.scenario.dt,
             local_ccosy=self.observation_collector.local_ccosy,
         )
+        self.ilqr_trajectory = None
         info = dict()
 
         return initial_observation, info
@@ -735,16 +737,61 @@ class CommonroadEnv(gym.Env):
         return ttc_follow, ttc_lead
 
     @staticmethod
-    def render_vec_env(env: gym.vector.VectorEnv = None, risk_result_list=None):
+    def step_plan_trajectory(ego_action, navigator, action):
+        trajectory = ego_action.step_plan_traj(action=action, logger=LOGGER)
+        if trajectory is None:
+            if len(ego_action.trajectory_history) > 0:
+                trajectory = ego_action.trajectory_history[-1]
+            else:
+                trajectory = ego_action.planner.ReferenceTraj(navigator=navigator)
+                # get the closet point on the reference trajectory
+                position = np.array([trajectory.cart_x, trajectory.cart_y]).transpose()
+                current_position = ego_action.vehicle.state.position
+                current_v = ego_action.vehicle.state.velocity
+                distance = np.linalg.norm(current_position - position, axis=1)
+                min_index = np.argmin(distance)
+                end_index = min(min_index + 30, len(trajectory.cart_x))
+                trajectory = np.array(
+                    [
+                        trajectory.cart_x[min_index:end_index],
+                        trajectory.cart_y[min_index:end_index],
+                        trajectory.cart_theta[min_index:end_index],
+                        np.ones(end_index - min_index) * current_v,
+                    ]
+                ).transpose()
+                return trajectory
+
+        trajectory = np.array(
+            [
+                trajectory.cart_x,
+                trajectory.cart_y,
+                trajectory.cart_theta,
+                trajectory.cart_v,
+            ]
+        ).transpose()
+
+        return trajectory
+
+    @staticmethod
+    def render_vec_env(
+        env: gym.vector.VectorEnv = None,
+        risk_result_list=None,
+        planner_result_list=None,
+    ):
         env_render_list = env.call("render", vec_env_show=True)
         if risk_result_list is None:
             risk_result_list = [None] * len(env_render_list)
-        for render_dict, risk_result in zip(env_render_list, risk_result_list):
+        if planner_result_list is None:
+            planner_result_list = [None] * len(env_render_list)
+        for render_dict, risk_result, planner_result in zip(env_render_list, risk_result_list, planner_result_list):
             if render_dict is not None:
                 render = render_dict["render"]
                 # show risk result
                 if risk_result is not None:
                     CommonroadEnv.render_risk_result(risk_result, render)
+                # show planner result
+                if planner_result_list is not None:
+                    CommonroadEnv.render_planner_result(planner_result, render)
                 render.render(
                     show=True,
                     filename=render_dict["filename"],
@@ -790,3 +837,20 @@ class CommonroadEnv(gym.Env):
                         radius_y=0.25,
                         draw_params=circle_viz_params,
                     )
+
+    @staticmethod
+    def render_planner_result(planner_result, render):
+        warm_start_trajectory = planner_result.warm_start_trajectory
+        # construct trajectory for visualization
+        traj_state_list = []
+        for index, pts in enumerate(warm_start_trajectory):
+            traj_state_list.append(STState(time_step=index, position=pts[:2]))
+        warm_start_trajectory_viz = Trajectory(initial_time_step=0, state_list=traj_state_list)
+        viz_param = TrajectoryParams(
+            time_begin=0,
+            time_end=len(warm_start_trajectory),
+            draw_continuous=True,
+            line_width=1.5,
+            facecolor="green",
+        )
+        render.draw_trajectory(warm_start_trajectory_viz, viz_param)
