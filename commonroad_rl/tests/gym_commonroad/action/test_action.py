@@ -1,6 +1,7 @@
 """
 Unit tests of the module gym_commonroad.action.vehicle
 """
+
 from commonroad_rl.gym_commonroad.action import *
 from commonroad_rl.gym_commonroad.action.action import _rotate_to_curvi
 from commonroad_rl.tests.common.marker import *

@@ -1,4 +1,5 @@
 """Unit tests for sparse reward class"""
+
 from commonroad_rl.gym_commonroad.reward.sparse_reward import SparseReward
 from commonroad_rl.tests.common.marker import unit_test, functional
 

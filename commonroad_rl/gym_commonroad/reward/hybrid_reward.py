@@ -1,4 +1,5 @@
 """Class for hybrid reward"""
+
 import logging
 from math import exp
 

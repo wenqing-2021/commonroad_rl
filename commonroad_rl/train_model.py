@@ -1,6 +1,7 @@
 """
 Module for training an agent using stable baselines
 """
+
 import os
 
 os.environ["KMP_WARNINGS"] = "off"

@@ -1,6 +1,7 @@
 """
 Module EgoObservation
 """
+
 from collections import defaultdict, OrderedDict
 from typing import Union, Dict
 

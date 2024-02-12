@@ -1,6 +1,7 @@
 """
 CommonRoad Gym environment
 """
+
 import gymnasium as gym
 from gymnasium.envs.registration import register
 

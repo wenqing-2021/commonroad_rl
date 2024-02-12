@@ -1,4 +1,5 @@
 """Module containing the Termination class"""
+
 from commonroad_rl.gym_commonroad.action import Action
 
 

@@ -1,6 +1,7 @@
 """
 Loads a set of pickled scenarios and measures loading time and memory consumption
 """
+
 import os
 import pickle
 import glob

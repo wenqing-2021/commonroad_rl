@@ -1,6 +1,7 @@
 """
 Module for playing trained model using Stable baselines
 """
+
 import argparse
 import csv
 import glob

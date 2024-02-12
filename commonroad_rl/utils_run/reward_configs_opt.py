@@ -1,6 +1,7 @@
 """
 A utility function to be called when optimizing reward configurations
 """
+
 import logging
 import os
 from collections import defaultdict

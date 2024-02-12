@@ -1,6 +1,7 @@
 """
 A utility function to be called when optimizing model hyperparameters
 """
+
 import logging
 import os
 from pprint import pformat

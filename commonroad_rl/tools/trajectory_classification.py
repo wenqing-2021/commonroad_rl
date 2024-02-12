@@ -94,9 +94,11 @@ def _calc_curvature(traj: Trajectory):
     y2 = _calc_derivative(y1, t)
 
     c = map(
-        lambda a: (a[0] * a[3] - a[2] * a[1]) / ((a[0] ** 2 + a[2] ** 2) ** 1.5)
-        if (a[0] ** 2 + a[2] ** 2) ** 1.5 != 0
-        else (a[0] * a[3] - a[2] * a[1]) / 1e-7,
+        lambda a: (
+            (a[0] * a[3] - a[2] * a[1]) / ((a[0] ** 2 + a[2] ** 2) ** 1.5)
+            if (a[0] ** 2 + a[2] ** 2) ** 1.5 != 0
+            else (a[0] * a[3] - a[2] * a[1]) / 1e-7
+        ),
         zip(x1, x2, y1, y2),
     )
     c = list(c)

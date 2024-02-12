@@ -1,6 +1,7 @@
 """
 Module for plotting learning curves
 """
+
 import os
 
 os.environ["KMP_WARNINGS"] = "off"

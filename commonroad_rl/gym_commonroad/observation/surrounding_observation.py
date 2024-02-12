@@ -190,9 +190,11 @@ class SurroundingObservation(Observation):
                 self._surrounding_area = pycrcc.RectOBB(
                     self.lane_rect_sensor_range_length / 2,
                     self.lane_rect_sensor_range_width / 2,
-                    self._ego_state.orientation
-                    if hasattr(self._ego_state, "orientation")
-                    else np.arctan2(self._ego_state.velocity_y, self._ego_state.velocity),
+                    (
+                        self._ego_state.orientation
+                        if hasattr(self._ego_state, "orientation")
+                        else np.arctan2(self._ego_state.velocity_y, self._ego_state.velocity)
+                    ),
                     self._ego_state.position[0],
                     self._ego_state.position[1],
                 )

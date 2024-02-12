@@ -262,7 +262,7 @@ class LaneletNetworkObservation(Observation):
             pos, _ = navigator.get_waypoints_of_reference_path(
                 ego_vehicle.state,
                 distances_ref_path=self.distances_route_reference_path,
-                observation_cos=Navigator.CosyVehicleObservation.LOCALCARTESIAN
+                observation_cos=Navigator.CosyVehicleObservation.LOCALCARTESIAN,
                 # coordinate axes for plot in direction of global CoSy
             )
             pos_global = ego_vehicle.state.position + pos  # back to non local CoSy Origin
@@ -284,7 +284,7 @@ class LaneletNetworkObservation(Observation):
                 ego_vehicle.state,
                 distances_per_lanelet=distances,
                 lanelets_id_rel=ids,
-                observation_cos=Navigator.CosyVehicleObservation.LOCALCARTESIAN
+                observation_cos=Navigator.CosyVehicleObservation.LOCALCARTESIAN,
                 # coordinate axes for plot in direction of global CoSy
             )
             for po in pos:

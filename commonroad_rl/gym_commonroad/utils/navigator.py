@@ -1,6 +1,7 @@
 """
 Navigation connecting the RoutePlanner with Observations
 """
+
 from typing import List, Union, Tuple, Set
 from enum import Enum
 from scipy.spatial import KDTree

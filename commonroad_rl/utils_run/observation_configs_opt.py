@@ -1,6 +1,7 @@
 """
 A utility function to be called when optimizing observation configurations
 """
+
 import logging
 import os
 from pprint import pformat

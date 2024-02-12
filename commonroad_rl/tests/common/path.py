@@ -1,6 +1,7 @@
 """
 Helper module for the path of tests
 """
+
 import os
 
 # Directory contains the output of tests

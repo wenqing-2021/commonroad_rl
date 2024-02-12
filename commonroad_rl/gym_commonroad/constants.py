@@ -1,6 +1,7 @@
 """
 Module for CommonRoad Gym environment related constants
 """
+
 # Lanelet parameters
 from commonroad_rl.gym_commonroad.utils.scenario_io import get_project_root
 

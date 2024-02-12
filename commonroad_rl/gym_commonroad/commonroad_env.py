@@ -1,6 +1,7 @@
 """
 Module for the CommonRoad Gym environment
 """
+
 import os
 import pathlib
 

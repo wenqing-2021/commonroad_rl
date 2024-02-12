@@ -1,6 +1,7 @@
 """
 Module for CommonRoad vectorized environment used in Stable Baselines
 """
+
 import time
 from typing import Callable
 

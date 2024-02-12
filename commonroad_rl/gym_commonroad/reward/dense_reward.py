@@ -1,4 +1,5 @@
 """Class for dense reward"""
+
 import warnings
 
 import numpy as np

@@ -1,6 +1,7 @@
 """
 Module for generating CommonRoad scenarios using random actions
 """
+
 import argparse
 import os
 import pickle

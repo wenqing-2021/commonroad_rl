@@ -1,4 +1,5 @@
 """Class for param action reward"""
+
 import logging
 from math import exp
 

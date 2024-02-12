@@ -1,5 +1,6 @@
 """File containing a reward function generator (Can't be incorporated into other modules because of cyclic import
 problems """
+
 from commonroad_rl.gym_commonroad.reward.hybrid_reward import HybridReward
 from commonroad_rl.gym_commonroad.reward.reward import Reward
 from commonroad_rl.gym_commonroad.reward.sparse_reward import SparseReward

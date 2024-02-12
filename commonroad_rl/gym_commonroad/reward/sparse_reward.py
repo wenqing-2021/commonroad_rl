@@ -1,4 +1,5 @@
 """Class for sparse reward"""
+
 import logging
 
 from commonroad_rl.gym_commonroad.action import Action

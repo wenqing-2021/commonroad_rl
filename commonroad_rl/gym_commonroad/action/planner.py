@@ -1,6 +1,7 @@
 """
 polynomial planner for the vehicle
 """
+
 import logging
 from multiprocessing.context import Process
 import numpy as np

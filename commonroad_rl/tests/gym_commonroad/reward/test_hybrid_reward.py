@@ -1,4 +1,5 @@
 """Unit tests for hybrid reward class"""
+
 import math
 import os
 import pickle

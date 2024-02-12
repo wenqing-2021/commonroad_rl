@@ -1,6 +1,7 @@
 """
 Module containing the action base class
 """
+
 from commonroad_route_planner.route import Route
 import gymnasium as gym
 from typing import Union

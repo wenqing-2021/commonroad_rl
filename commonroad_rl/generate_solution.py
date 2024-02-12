@@ -1,6 +1,7 @@
 """
 Module for solving CommonRoad scenarios using trained models
 """
+
 import argparse
 import logging
 import os

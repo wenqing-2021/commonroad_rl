@@ -1,6 +1,7 @@
 """
 Module for scenario related helper methods for the CommonRoad Gym environment
 """
+
 import numpy as np
 from typing import Tuple, Union, List, Set
 from commonroad.common.solution import VehicleModel, VehicleType

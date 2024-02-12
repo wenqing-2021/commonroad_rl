@@ -1,5 +1,6 @@
 """ Module for managing the vehicle in the CommonRoad Gym environment
 """
+
 import copy
 
 import numpy as np
@@ -170,12 +171,16 @@ class Vehicle(ABC):
                     "time_step": initial_state.time_step,
                     "velocity": initial_state.velocity * np.cos(orientation),
                     "velocity_y": initial_state.velocity * np.sin(orientation),
-                    "acceleration": initial_state.acceleration * np.cos(orientation)
-                    if hasattr(initial_state, "acceleration")
-                    else 0.0,
-                    "acceleration_y": initial_state.acceleration * np.sin(orientation)
-                    if hasattr(initial_state, "acceleration")
-                    else 0.0,
+                    "acceleration": (
+                        initial_state.acceleration * np.cos(orientation)
+                        if hasattr(initial_state, "acceleration")
+                        else 0.0
+                    ),
+                    "acceleration_y": (
+                        initial_state.acceleration * np.sin(orientation)
+                        if hasattr(initial_state, "acceleration")
+                        else 0.0
+                    ),
                 }
             )
         elif self.vehicle_model == VehicleModel.QP:
@@ -185,9 +190,11 @@ class Vehicle(ABC):
                     "velocity": initial_state.velocity,
                     "acceleration": initial_state.acceleration if hasattr(initial_state, "acceleration") else 0.0,
                     "jerk": initial_state.jerk if hasattr(initial_state, "jerk") else 0.0,
-                    "orientation": make_valid_orientation(initial_state.orientation)
-                    if hasattr(initial_state, "orientation")
-                    else 0.0,
+                    "orientation": (
+                        make_valid_orientation(initial_state.orientation)
+                        if hasattr(initial_state, "orientation")
+                        else 0.0
+                    ),
                     "slip_angle": 0.0,
                     "yaw_rate": 0.0,
                     "time_step": initial_state.time_step,
@@ -199,9 +206,11 @@ class Vehicle(ABC):
                     "position": initial_state.position,
                     "steering_angle": initial_state.steering_angle,
                     "velocity": initial_state.velocity,
-                    "orientation": make_valid_orientation(initial_state.orientation)
-                    if hasattr(initial_state, "orientation")
-                    else 0.0,
+                    "orientation": (
+                        make_valid_orientation(initial_state.orientation)
+                        if hasattr(initial_state, "orientation")
+                        else 0.0
+                    ),
                     "yaw_rate": initial_state.yaw_rate if hasattr(initial_state, "yaw_rate") else 0.0,
                     "slip_angle": 0.0,
                     "time_step": initial_state.time_step,
@@ -215,9 +224,11 @@ class Vehicle(ABC):
                 **{
                     "position": initial_state.position,
                     "velocity": initial_state.velocity,
-                    "orientation": make_valid_orientation(initial_state.orientation)
-                    if hasattr(initial_state, "orientation")
-                    else 0.0,
+                    "orientation": (
+                        make_valid_orientation(initial_state.orientation)
+                        if hasattr(initial_state, "orientation")
+                        else 0.0
+                    ),
                     "yaw_rate": 0.0,
                     "lat_v": v_y,
                     "slip_angle": slip_angle,
@@ -230,9 +241,11 @@ class Vehicle(ABC):
                 **{
                     "position": initial_state.position,
                     "steering_angle": initial_state.steering_angle if hasattr(initial_state, "steering_angle") else 0.0,
-                    "orientation": make_valid_orientation(initial_state.orientation)
-                    if hasattr(initial_state, "orientation")
-                    else 0.0,
+                    "orientation": (
+                        make_valid_orientation(initial_state.orientation)
+                        if hasattr(initial_state, "orientation")
+                        else 0.0
+                    ),
                     "yaw_rate": initial_state.yaw_rate if hasattr(initial_state, "yaw_rate") else 0.0,
                     "time_step": initial_state.time_step,
                     "velocity": initial_state.velocity,
