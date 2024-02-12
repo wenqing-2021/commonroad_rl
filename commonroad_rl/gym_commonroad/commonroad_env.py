@@ -790,7 +790,7 @@ class CommonroadEnv(gym.Env):
                 if risk_result is not None:
                     CommonroadEnv.render_risk_result(risk_result, render)
                 # show planner result
-                if planner_result_list is not None:
+                if planner_result is not None:
                     CommonroadEnv.render_planner_result(planner_result, render)
                 render.render(
                     show=True,
