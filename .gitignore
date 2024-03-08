@@ -9,7 +9,7 @@
 install
 
 # configs
-*.yaml
+# *.yaml
 
 # images
 img

@@ -831,7 +831,7 @@ class CommonroadEnv(gym.Env):
                     center_x = risk_x[i, j]
                     center_y = risk_y[i, j]
                     risk = risk_p[i, j]
-                    circle_viz_params = ShapeParams(opacity=risk, facecolor="blue", edgecolor="blue")
+                    circle_viz_params = ShapeParams(opacity=risk, facecolor="gold", edgecolor="gold")
                     render.draw_ellipse(
                         center=[center_x, center_y],
                         radius_x=0.25,
