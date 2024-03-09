@@ -491,7 +491,7 @@ class PolynomialPlanner:
         acc: float = None,
         steering_angle: float = None,
         logger: logging.Logger = None,
-    ) -> (np.ndarray, np.ndarray):
+    ):
         """
         Computes the curvilinear initial states for the polynomial planner based on the Cartesian initial state
         :param x_0: The Cartesion state object representing the initial state of the vehicle
@@ -620,7 +620,7 @@ class PolynomialPlanner:
                     cart_theta = make_valid_orientation(cart_theta)
                     traj_theta.append(cart_theta)
                 else:
-                    traj_theta.append(x_0.orientation) if i == 0 else traj_theta.append(traj_theta[-1])
+                    (traj_theta.append(x_0.orientation) if i == 0 else traj_theta.append(traj_theta[-1]))
                     curv_theta = traj_theta[-1] - interpolate_angle(
                         traj_s[i],
                         self._co.ref_pos[s_idx],

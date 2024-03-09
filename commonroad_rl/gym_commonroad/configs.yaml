@@ -151,7 +151,7 @@ env_configs:
     render_ego_lanelet_center_vertices: False # whether to render the center vertices of the ego lane
     # whether to colorize detected surrounding obstacles in
     # (lane-based rectangle, lane-based circle, lidar-based) detection methods
-    render_surrounding_obstacles_lane_based: True
+    render_surrounding_obstacles_lane_based: False
     render_lidar_circle_surrounding_obstacles: False
     # whether to render the sensing area/lidar beams in the three detection methods
     render_surrounding_area: False

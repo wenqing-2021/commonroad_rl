@@ -12,11 +12,20 @@ import random
 import logging
 import numpy as np
 from queue import Queue
-
+import seaborn as sns
 from typing import Tuple, Union
 
 # import from commonroad-drivability-checker
 from commonroad.geometry.shape import Rectangle
+
+# import from commonroad-reach
+from commonroad_reach.utility.visualization import (
+    generate_default_drawing_parameters,
+    compute_plot_limits_from_reachable_sets,
+    draw_reachable_sets,
+    draw_drivable_area,
+)
+from commonroad_reach.data_structure.reach.reach_interface import ReachableSetInterface
 
 # import from commonroad-io
 from commonroad.scenario.scenario import ScenarioID, Scenario
@@ -449,7 +458,7 @@ class CommonroadEnv(gym.Env):
             self.draw_params.lanelet_network.traffic_sign.show_label = False
             self.draw_params.lanelet_network.traffic_sign.scale_factor = 0.1
             self.draw_params.lanelet_network.intersection.draw_intersections = False
-            self.draw_params.dynamic_obstacle.show_label = True
+            self.draw_params.dynamic_obstacle.show_label = False
 
     def render(self, mode: str = "human", **kwargs) -> None:
         """
@@ -485,8 +494,10 @@ class CommonroadEnv(gym.Env):
         self.scenario.draw(self.cr_render, self.draw_params)
 
         # Draw certain objects only once
-        if (not self.render_configs["render_combine_frames"] or self.current_step == 0) and not isinstance(mode, int):
-            self.planning_problem.draw(self.cr_render)
+        # if (
+        #     not self.render_configs["render_combine_frames"] or self.current_step == 0
+        # ) and not isinstance(mode, int):
+        #     self.planning_problem.draw(self.cr_render)
 
         self.observation_collector.render(self.render_configs, self.cr_render)
 
@@ -520,12 +531,12 @@ class CommonroadEnv(gym.Env):
         ego_obstacle.draw(self.cr_render, draw_params=ego_draw_params)
 
         # show trajectory
-        if self.ego_action.planner.trajectory is not None:
-            (
-                viz_trajecotry,
-                viz_traj_params,
-            ) = self.ego_action.planner.trajectory.convert_to_viz_trajectory()
-            self.cr_render.draw_trajectory(viz_trajecotry, viz_traj_params)
+        # if self.ego_action.planner.trajectory is not None:
+        #     (
+        #         viz_trajecotry,
+        #         viz_traj_params,
+        #     ) = self.ego_action.planner.trajectory.convert_to_viz_trajectory()
+        #     self.cr_render.draw_trajectory(viz_trajecotry, viz_traj_params)
 
         # show reference
         # print(self.ego_action.polynomial_planner._co.reference)
@@ -543,15 +554,15 @@ class CommonroadEnv(gym.Env):
         self.cr_render.draw_trajectory(reference_trajectory, reference_viz_params)
 
         # show tracked state
-        if self.ego_action.matched_state is not None:
-            matched_state = self.ego_action.matched_state
-            matched_position = matched_state.position
-            self.cr_render.draw_ellipse(
-                center=[matched_position[0], matched_position[1]],
-                radius_x=0.5,
-                radius_y=0.5,
-                draw_params=self.draw_params.shape,
-            )
+        # if self.ego_action.matched_state is not None:
+        #     matched_state = self.ego_action.matched_state
+        #     matched_position = matched_state.position
+        #     self.cr_render.draw_ellipse(
+        #         center=[matched_position[0], matched_position[1]],
+        #         radius_x=0.5,
+        #         radius_y=0.5,
+        #         draw_params=self.draw_params.shape,
+        #     )
 
         # self.ego_action.vehicle.collision_object.draw(self.cr_render, draw_params={"facecolor": "green", "zorder": 30})
 
@@ -597,6 +608,7 @@ class CommonroadEnv(gym.Env):
                         "render": self.cr_render,
                         "filename": filename,
                         "keep_static_artists": True,
+                        "time_step": self.current_step,
                     }
                     return result
                 else:
@@ -778,18 +790,30 @@ class CommonroadEnv(gym.Env):
         env: gym.vector.VectorEnv = None,
         risk_result_list=None,
         planner_result_list=None,
+        reachable_set_interface_list=None,
     ):
         env_render_list = env.call("render", vec_env_show=True)
         if risk_result_list is None:
             risk_result_list = [None] * len(env_render_list)
         if planner_result_list is None:
             planner_result_list = [None] * len(env_render_list)
-        for render_dict, risk_result, planner_result in zip(env_render_list, risk_result_list, planner_result_list):
+        if reachable_set_interface_list is None:
+            reachable_set_interface_list = [None] * len(env_render_list)
+        for render_dict, risk_result, planner_result, reachable_set_interface in zip(
+            env_render_list,
+            risk_result_list,
+            planner_result_list,
+            reachable_set_interface_list,
+        ):
             if render_dict is not None:
                 render = render_dict["render"]
+                time_step = render_dict["time_step"]
                 # show risk result
                 if risk_result is not None:
                     CommonroadEnv.render_risk_result(risk_result, render)
+                # show reachable set
+                if reachable_set_interface is not None:
+                    CommonroadEnv.render_reachable_set(reachable_set_interface, time_step, render)
                 # show planner result
                 if planner_result is not None:
                     CommonroadEnv.render_planner_result(planner_result, render)
@@ -817,10 +841,10 @@ class CommonroadEnv(gym.Env):
                 time_begin=0,
                 time_end=len(original_traj),
                 draw_continuous=True,
-                line_width=1.5,
-                facecolor="green",
+                line_width=0.5,
+                facecolor="blue",
             )
-            render.draw_trajectory(trajectory, trajectory_viz_params)
+            # render.draw_trajectory(trajectory, trajectory_viz_params)
             particals = vehicle_risk_field.particals
             risk_p = particals[2, :, :]
             risk_x = particals[0, :, :]
@@ -838,6 +862,22 @@ class CommonroadEnv(gym.Env):
                         radius_y=0.25,
                         draw_params=circle_viz_params,
                     )
+
+    @staticmethod
+    def render_reachable_set(reach_interface: ReachableSetInterface, step, renderer):
+        config = reach_interface.config
+        plot_limits = compute_plot_limits_from_reachable_sets(reach_interface)
+        palette = sns.color_palette("GnBu_d", 3)
+        edge_color = (palette[0][0] * 0.75, palette[0][1] * 0.75, palette[0][2] * 0.75)
+        step = min(step + 8, reach_interface.step_end)
+        # generate default drawing parameters
+        draw_params = generate_default_drawing_parameters(config)
+        draw_params.shape.facecolor = palette[0]
+        draw_params.shape.edgecolor = edge_color
+
+        # draw reachable set
+        list_nodes = reach_interface.drivable_area_at_step(step)
+        draw_drivable_area(list_nodes, config, renderer, draw_params)
 
     @staticmethod
     def render_planner_result(planner_result, render):
