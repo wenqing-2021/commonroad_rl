@@ -13,7 +13,7 @@ import logging
 import numpy as np
 from queue import Queue
 import seaborn as sns
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict
 
 # import from commonroad-drivability-checker
 from commonroad.geometry.shape import Rectangle
@@ -343,7 +343,7 @@ class CommonroadEnv(gym.Env):
     def current_step(self, time_step):
         raise ValueError(f"<CommonroadEnv> Set current_step is prohibited!")
 
-    def step(self, action: Union[np.ndarray, State, Tuple]) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, action: Union[np.ndarray, State, Dict]) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Propagate to next time step, compute next observations, reward and status.
 
@@ -351,8 +351,14 @@ class CommonroadEnv(gym.Env):
         :return: observation, reward, status and other information
         """
         # check the action has risk result
-        if isinstance(action, Tuple):
-            action, risk_info = action
+        if isinstance(action, Dict):
+            if "risk_info" in action.keys():
+                risk_info = action["risk_info"]
+            if "reach_interface" in action.keys():
+                reach_interface = action["reach_interface"]
+
+            # get the action
+            action = action["action"]
 
         if isinstance(action, State):
             # set ego_state directly
@@ -362,13 +368,14 @@ class CommonroadEnv(gym.Env):
             if self.action_configs["action_type"] == "continuous":
                 action = np.clip(action, a_min=self.action_space.low, a_max=self.action_space.high)
             elif self.action_configs["action_type"] == "parameters":
-                # self.observation_collector._update_ego_lanelet_and_local_ccosy()
                 action = np.clip(action, a_min=self.action_space.low, a_max=self.action_space.high)
-                # collision_checker = self.observation_collector.get_collision_checker()
-                action_false = self.ego_action.step(
-                    action,
-                    logger=LOGGER,
-                )
+                if not self.action_configs["refine_trajectory"]:
+                    action_false = self.ego_action.step(
+                        action,
+                        logger=LOGGER,
+                    )
+                else:
+                    action_false = self.ego_action.step(action, logger=LOGGER, reach_interface=reach_interface)
             else:
                 self.ego_action.step(action, local_ccosy=self.observation_collector.local_ccosy)
         LOGGER.debug(
@@ -494,10 +501,8 @@ class CommonroadEnv(gym.Env):
         self.scenario.draw(self.cr_render, self.draw_params)
 
         # Draw certain objects only once
-        # if (
-        #     not self.render_configs["render_combine_frames"] or self.current_step == 0
-        # ) and not isinstance(mode, int):
-        #     self.planning_problem.draw(self.cr_render)
+        if (not self.render_configs["render_combine_frames"] or self.current_step == 0) and not isinstance(mode, int):
+            self.planning_problem.draw(self.cr_render)
 
         self.observation_collector.render(self.render_configs, self.cr_render)
 
@@ -531,12 +536,21 @@ class CommonroadEnv(gym.Env):
         ego_obstacle.draw(self.cr_render, draw_params=ego_draw_params)
 
         # show trajectory
-        # if self.ego_action.planner.trajectory is not None:
-        #     (
-        #         viz_trajecotry,
-        #         viz_traj_params,
-        #     ) = self.ego_action.planner.trajectory.convert_to_viz_trajectory()
-        #     self.cr_render.draw_trajectory(viz_trajecotry, viz_traj_params)
+        if self.ego_action.planner.trajectory is not None:
+            (
+                viz_trajecotry,
+                viz_traj_params,
+            ) = self.ego_action.planner.trajectory.convert_to_viz_trajectory()
+            self.cr_render.draw_trajectory(viz_trajecotry, viz_traj_params)
+
+        # show refine trajectory if exists
+        if self.ego_action.current_refine_trajectory is not None:
+            traj_color = (238 / 255, 191 / 255, 109 / 255)
+            (
+                viz_refine_trajecotry,
+                viz_traj_params,
+            ) = self.ego_action.current_refine_trajectory.convert_to_viz_trajectory(traj_color=traj_color)
+            self.cr_render.draw_trajectory(viz_refine_trajecotry, viz_traj_params)
 
         # show reference
         # print(self.ego_action.polynomial_planner._co.reference)
@@ -551,7 +565,7 @@ class CommonroadEnv(gym.Env):
             draw_continuous=True,
             facecolor="g",
         )
-        self.cr_render.draw_trajectory(reference_trajectory, reference_viz_params)
+        # self.cr_render.draw_trajectory(reference_trajectory, reference_viz_params)
 
         # show tracked state
         # if self.ego_action.matched_state is not None:

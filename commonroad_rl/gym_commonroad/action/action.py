@@ -5,13 +5,17 @@ Module containing the action base class
 from commonroad_route_planner.route import Route
 import gymnasium as gym
 from typing import Union
+import copy
 import logging
 from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
 from commonroad_rl.gym_commonroad.action.vehicle import *
 from commonroad_rl.gym_commonroad.action.planner import (
     PolynomialPlanner,
     RLReactivePlanner,
+    PlanTrajectory,
 )
+from commonroad_reach.data_structure.reach.reach_interface import ReachableSetInterface
+from commonroad_reach.data_structure.reach.reach_node import ReachNodeMultiGeneration
 from commonroad_rl.gym_commonroad.action.controller import Controller
 from commonroad_rl.gym_commonroad.utils.navigator import Navigator
 from commonroad_rp.utility.utils_coordinate_system import CoordinateSystem
@@ -340,6 +344,12 @@ class ParameterAction(ContinuousAction):
             return None
         return self.trajectory_history[-1]
 
+    @property
+    def current_refine_trajectory(self) -> PlanTrajectory:
+        if self.refine_traj_history.__len__() == 0:
+            return None
+        return self.refine_traj_history[-1]
+
     def __init__(self, params_dict: dict, action_dict: dict):
         """Initialize object"""
         # create vehicle object
@@ -348,6 +358,7 @@ class ParameterAction(ContinuousAction):
         self._continous_collision_check = action_dict.get("continuous_collision_checking", True)
         self.vehicle = ContinuousVehicle(params_dict, continuous_collision_checking=self._continous_collision_check)
         self.trajectory_history = []
+        self.refine_traj_history = []
         self.planner = PolynomialPlanner(self.vehicle.parameters)
         self.controller = Controller(
             config=action_dict["control_config"],
@@ -368,6 +379,7 @@ class ParameterAction(ContinuousAction):
         self.planner.reset(self.params_range["max_plan_time"], self._scenario_dt, local_ccosy)
         self._last_matched_state = None
         self.trajectory_history.clear()
+        self.refine_traj_history.clear()
 
     def _set_rescale_factors(self):
         max_plan_time = self.params_range["max_plan_time"]
@@ -403,6 +415,7 @@ class ParameterAction(ContinuousAction):
         self,
         action: Union[np.ndarray, int],
         logger: logging.Logger = None,
+        reach_interface: ReachableSetInterface = None,
     ) -> None:
         """
         Function which acts on the current state and generates the new state
@@ -415,15 +428,22 @@ class ParameterAction(ContinuousAction):
         # coordinate_system = CoordinateSystem(
         #     reference=navigator.route.reference_path, ccosy=local_ccosy)
 
-        plan_trajectory = self.planner.PlanTraj(vehicle=self.vehicle, rescaled_action=rescaled_action, logger=logger)
+        plan_trajectory: PlanTrajectory = self.planner.PlanTraj(
+            vehicle=self.vehicle, rescaled_action=rescaled_action, logger=logger
+        )
+        refine_plan_trajectory: PlanTrajectory = None
+        if reach_interface is not None:
+            refine_plan_trajectory = self.refine_trajectory(reach_interface, plan_trajectory)
 
         # plan_trajectory = self.planner.ReferenceTraj(navigator=navigator)
 
         # planning trajectory
 
-        trajectory = plan_trajectory
+        trajectory = refine_plan_trajectory if refine_plan_trajectory is not None else plan_trajectory
         if plan_trajectory is not None:
             self.trajectory_history.append(plan_trajectory)
+            if refine_plan_trajectory is not None:
+                self.refine_traj_history.append(refine_plan_trajectory)
         else:
             return True
         # update vehicle state
@@ -455,6 +475,190 @@ class ParameterAction(ContinuousAction):
             logger.debug(f"orientation is {self.vehicle.state.orientation}, yaw rate is {self.vehicle.state.yaw_rate}")
 
         return False
+
+    def refine_trajectory(
+        self, reach_interface: ReachableSetInterface, plan_trajectory: PlanTrajectory
+    ) -> PlanTrajectory:
+        def find_nodes_v_range(nodes: List[ReachNodeMultiGeneration]):
+            min_v_lon = np.inf
+            max_v_lon = -np.inf
+            for node in nodes:
+                min_v_lon = min(min_v_lon, node.v_lon_min)
+                max_v_lon = max(max_v_lon, node.v_lon_max)
+            return min_v_lon, max_v_lon
+
+        current_step = self.vehicle.state.time_step
+        # loop the time horizon
+        end_step = current_step + int(self.params_range["max_plan_time"] / self._scenario_dt)
+
+        def find_nodes_l_range(nodes: List[ReachNodeMultiGeneration], target_s):
+            for node in nodes:
+                if node.p_lon_min <= target_s <= node.p_lon_max:
+                    return node.p_lat_min, node.p_lat_max
+
+            return nodes[0].p_lat_min, nodes[0].p_lat_max
+
+        plan_trajectory_iter = copy.deepcopy(plan_trajectory)
+        end_step = min(end_step, reach_interface.step_end)
+        s_0 = self.planner.initial_state_dict["s_0"]
+        ds_0 = self.planner.initial_state_dict["ds_0"]
+        dds_0 = self.planner.initial_state_dict["dds_0"]
+        l_0 = self.planner.initial_state_dict["l_0"]
+        dl_0 = self.planner.initial_state_dict["dl_0"]
+        ddl_0 = self.planner.initial_state_dict["ddl_0"]
+        plan_T = self.params_range["max_plan_time"]
+        original_target_v = self.planner.initial_state_dict["target_v"]
+        last_list_nodes = reach_interface.reachable_set_at_step(end_step - 1)
+        min_v_T, max_v_T = find_nodes_v_range(last_list_nodes)
+        valid_target_v = max(min(max_v_T, original_target_v), min_v_T)
+        t_series = np.linspace(0, plan_T - self._scenario_dt, int(plan_T / self._scenario_dt))
+        # loop the time horizon
+        for step in range(current_step + 1, end_step):
+            # get the reachable set at the step
+            list_nodes = reach_interface.reachable_set_at_step(step)
+            # longidutinal trajectory refinement
+            ## find the min_v_lon in each node
+            min_v_lon, max_v_lon = find_nodes_v_range(list_nodes)
+            ## check the plan_trajectory
+            dot_s = plan_trajectory_iter.frenet_ds[step - current_step]
+            plan_t = (step - current_step) * self._scenario_dt
+            if not (dot_s >= min_v_lon and dot_s <= max_v_lon):
+                valid_dot_s = max(min(max_v_lon, dot_s), min_v_lon)
+                A = np.array(
+                    [
+                        [4 * plan_T * plan_T * plan_T, 3 * plan_T * plan_T],
+                        [4 * plan_t * plan_t * plan_t, 3 * plan_t * plan_t],
+                    ]
+                )
+                B = np.array(
+                    [
+                        [valid_target_v - ds_0 - dds_0 * plan_T],
+                        [valid_dot_s - ds_0 - dds_0 * plan_t],
+                    ]
+                )
+                X = np.linalg.solve(A, B)
+                a0 = X[0]
+                a1 = X[1]
+                s_traj = a0 * t_series**4 + a1 * t_series**3 + dds_0 / 2 * t_series**2 + ds_0 * t_series + s_0
+                dot_s_traj = 4 * a0 * t_series**3 + 3 * a1 * t_series**2 + dds_0 * t_series + ds_0
+                ddot_s_traj = 12 * a0 * t_series**2 + 6 * a1 * t_series + dds_0
+                plan_trajectory_iter.frenet_s = s_traj
+                plan_trajectory_iter.frenet_ds = dot_s_traj
+                plan_trajectory_iter.frenet_dds = ddot_s_traj
+
+            # lateral trajectory refinement
+            ## find the target node
+            step_target_s = plan_trajectory_iter.frenet_s[step - current_step]
+            min_l, max_l = find_nodes_l_range(list_nodes, step_target_s)
+            ## check the plan_trajectory
+            l = plan_trajectory_iter.frenet_l[step - current_step]
+            if not (l >= min_l and l <= max_l):
+                valid_l = max(min(max_l, l), min_l)
+                b5 = l_0
+                b4 = dl_0
+                b3 = ddl_0 / 2.0
+                if not self.planner._low_vel_mode:
+                    lateral_series = t_series
+                    A = np.array(
+                        [
+                            [plan_t**5, plan_t**4, plan_t**3],
+                            [5 * plan_T**4, 4 * plan_T**3, 3 * plan_T**2],
+                            [20 * plan_T**3, 12 * plan_T**2, 6 * plan_T],
+                        ]
+                    )
+
+                    B = np.array(
+                        [
+                            valid_l - b3 * plan_t**2 - b4 * plan_t - b5,
+                            -b4 - 2 * b3 * plan_T,
+                            -2 * b3,
+                        ]
+                    )
+                    X = np.linalg.solve(A, B)
+                    b0 = X[0]
+                    b1 = X[1]
+                    b2 = X[2]
+                    l = (
+                        b0 * lateral_series**5
+                        + b1 * lateral_series**4
+                        + b2 * lateral_series**3
+                        + b3 * lateral_series**2
+                        + b4 * lateral_series
+                        + b5
+                    )
+                    dot_l = (
+                        5 * b0 * lateral_series**4
+                        + 4 * b1 * lateral_series**3
+                        + 3 * b2 * lateral_series**2
+                        + 2 * b3 * lateral_series
+                        + b4
+                    )
+                    ddot_l = (
+                        20 * b0 * lateral_series**3 + 12 * b1 * lateral_series**2 + 6 * b2 * lateral_series + 2 * b3
+                    )
+                    plan_trajectory_iter.frenet_l = l
+                    plan_trajectory_iter.frenet_dl = dot_l
+                    plan_trajectory_iter.frenet_ddl = ddot_l
+
+                else:
+                    lateral_series = s_traj - s_traj[0]
+                    plan_S = s_traj[-1] - s_traj[0]
+                    plan_s = step_target_s
+                    A = np.array(
+                        [
+                            [plan_s**5, plan_s**4, plan_s**3],
+                            [5 * plan_S**4, 4 * plan_S**3, 3 * plan_S**2],
+                            [20 * plan_S**3, 12 * plan_S**2, 6 * plan_S],
+                        ]
+                    )
+
+                    B = np.array(
+                        [
+                            valid_l - b3 * plan_s**2 - b4 * plan_s - b5,
+                            -b4 - 2 * b3 * plan_S,
+                            -2 * b3,
+                        ]
+                    )
+                    X = np.linalg.solve(A, B)
+                    b0 = X[0]
+                    b1 = X[1]
+                    b2 = X[2]
+                    l = (
+                        b0 * lateral_series**5
+                        + b1 * lateral_series**4
+                        + b2 * lateral_series**3
+                        + b3 * lateral_series**2
+                        + b4 * lateral_series
+                        + b5
+                    )
+                    dot_l = (
+                        5 * b0 * lateral_series**4
+                        + 4 * b1 * lateral_series**3
+                        + 3 * b2 * lateral_series**2
+                        + 2 * b3 * lateral_series
+                        + b4
+                    )
+                    ddot_l = (
+                        20 * b0 * lateral_series**3 + 12 * b1 * lateral_series**2 + 6 * b2 * lateral_series + 2 * b3
+                    )
+                    plan_trajectory_iter.frenet_l = l
+                    plan_trajectory_iter.frenet_dl = dot_l
+                    plan_trajectory_iter.frenet_ddl = ddot_l
+
+        frenet_traj = [
+            plan_trajectory_iter.frenet_s,
+            plan_trajectory_iter.frenet_ds,
+            plan_trajectory_iter.frenet_dds,
+            plan_trajectory_iter.frenet_l,
+            plan_trajectory_iter.frenet_dl,
+            plan_trajectory_iter.frenet_ddl,
+        ]
+
+        cart_traj = self.planner._get_cart_traj(frenet_traj)
+        final_traj = PlanTrajectory(frenet_traj=frenet_traj, cart_traj=cart_traj, dt=self._scenario_dt)
+
+        # update the plan_trajectory
+        return final_traj
 
 
 def action_constructor(

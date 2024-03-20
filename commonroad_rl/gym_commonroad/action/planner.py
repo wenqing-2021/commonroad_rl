@@ -72,104 +72,45 @@ class PlanTrajectory:
         # [traj_s, traj_ds, traj_dds, traj_l, traj_dl, traj_ddl]
         self._frenet_traj = frenet_traj
         # [traj_x, traj_y, traj_theta, traj_kappa, traj_v, traj_a]
-        self._cart_traj = cart_traj
-        self._frenet_s = frenet_traj[0]
-        self._frenet_l = frenet_traj[3]
-        self._frenet_ds = frenet_traj[1]
-        self._frenet_dl = frenet_traj[4]
-        self._frenet_dds = frenet_traj[2]
-        self._frenet_ddl = frenet_traj[5]
-        self._cart_x = cart_traj[0]
-        self._cart_y = cart_traj[1]
-        self._cart_theta = cart_traj[2]  # velocity direction with the x axis
-        self._cart_kappa = cart_traj[3]
-        self._cart_v = cart_traj[4]
-        self._cart_a = cart_traj[5]
-        self._dt = dt
-
-    @property
-    def dt(self):
-        return self._dt
-
-    @property
-    def frenet_traj(self):
-        return self._frenet_traj
-
-    @property
-    def cart_traj(self):
-        return self._cart_traj
+        self.cart_traj = cart_traj
+        self.frenet_s = frenet_traj[0]
+        self.frenet_l = frenet_traj[3]
+        self.frenet_ds = frenet_traj[1]
+        self.frenet_dl = frenet_traj[4]
+        self.frenet_dds = frenet_traj[2]
+        self.frenet_ddl = frenet_traj[5]
+        self.cart_x = cart_traj[0]
+        self.cart_y = cart_traj[1]
+        self.cart_theta = cart_traj[2]  # velocity direction with the x axis
+        self.cart_kappa = cart_traj[3]
+        self.cart_v = cart_traj[4]
+        self.cart_a = cart_traj[5]
+        self.dt = dt
 
     @property
     def cartesian_path(self):
-        return np.array([self._cart_x, self._cart_y]).transpose()
+        return np.array([self.cart_x, self.cart_y]).transpose()
 
-    @property
-    def frenet_s(self):
-        return self._frenet_s
-
-    @property
-    def frenet_l(self):
-        return self._frenet_l
-
-    @property
-    def frenet_ds(self):
-        return self._frenet_ds
-
-    @property
-    def frenet_dl(self):
-        return self._frenet_dl
-
-    @property
-    def frenet_dds(self):
-        return self._frenet_dds
-
-    @property
-    def frenet_ddl(self):
-        return self._frenet_ddl
-
-    @property
-    def cart_x(self):
-        return self._cart_x
-
-    @property
-    def cart_y(self):
-        return self._cart_y
-
-    @property
-    def cart_theta(self):
-        return self._cart_theta
-
-    @property
-    def cart_v(self):
-        return self._cart_v
-
-    @property
-    def cart_a(self):
-        return self._cart_a
-
-    @property
-    def cart_kappa(self):
-        return self._cart_kappa
-
-    def convert_to_viz_trajectory(self):
+    def convert_to_viz_trajectory(self, **kwargs):
         """
         Converts the trajectory to a CommonRoad Trajectory object
         :return: CommonRoad Trajectory object
         """
+        traj_color = kwargs.get("traj_color", (217 / 255, 79 / 255, 51 / 255))
         trajectory_viz_params = TrajectoryParams(
             time_begin=0,
-            time_end=len(self._cart_x),
+            time_end=len(self.cart_x) - 5,
             draw_continuous=True,
-            line_width=1.5,
-            facecolor="black",
+            line_width=2.0,
+            facecolor=traj_color,
         )
         state_list = []
-        for i in range(len(self._cart_x)):
+        for i in range(len(self.cart_x)):
             state_list.append(
                 STState(
                     time_step=i,
-                    orientation=self._cart_theta[i],
-                    position=np.array([self._cart_x[i], self._cart_y[i]]),
+                    orientation=self.cart_theta[i],
+                    position=np.array([self.cart_x[i], self.cart_y[i]]),
                 )
             )
         return (
@@ -183,6 +124,7 @@ class PolynomialPlanner:
         self._vehicle_params = vehicle_params
         self._trajectory = None
         self._low_vel_mode = False
+        self.initial_state_dict = None
 
     @property
     def trajectory(self) -> PlanTrajectory:
@@ -311,6 +253,16 @@ class PolynomialPlanner:
             traj_l, traj_dl, traj_ddl = self.quintic_polynomial(l_0, dl_0, ddl_0, target_d, 0.0, 0.0, lat_time)
         else:
             traj_l, traj_dl, traj_ddl = self.quintic_polynomial_with_s(l_0, dl_0, ddl_0, target_d, 0.0, 0.0, traj_s)
+        # save the initial state info
+        self.initial_state_dict = {
+            "s_0": s_0,
+            "l_0": l_0,
+            "ds_0": ds_0,
+            "dds_0": dds_0,
+            "dl_0": dl_0,
+            "ddl_0": ddl_0,
+            "target_v": target_v,
+        }
         frenet_traj = [traj_s, traj_ds, traj_dds, traj_l, traj_dl, traj_ddl]
 
         valid_frenet_traj: List[np.ndarray] = self._check_valid_frenet_traj(frenet_traj=frenet_traj)

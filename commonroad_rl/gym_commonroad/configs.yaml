@@ -31,6 +31,7 @@ env_configs:
       pid_v_kp: 0.0
       pid_v_kd: 0.0
       stanley_k: 0.5
+    refine_trajectory: True
     
 
   # Flatten observation into a vector for NN input
