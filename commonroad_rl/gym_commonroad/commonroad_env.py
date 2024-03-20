@@ -839,12 +839,30 @@ class CommonroadEnv(gym.Env):
             trajectory = Trajectory(initial_time_step=0, state_list=traj_state_list)
             trajectory_viz_params = TrajectoryParams(
                 time_begin=0,
-                time_end=len(original_traj),
+                time_end=int(len(original_traj) - 13),
                 draw_continuous=True,
-                line_width=0.5,
+                line_width=1.2,
                 facecolor="blue",
             )
-            # render.draw_trajectory(trajectory, trajectory_viz_params)
+            render.draw_trajectory(trajectory, trajectory_viz_params)
+            cvar_x = vehicle_risk_field.gpr_result.CVaR_x
+            cvar_y = vehicle_risk_field.gpr_result.CVaR_y
+            left_bd_traj_state_list = []
+            right_bd_traj_state_list = []
+            for index in range(len(cvar_x)):
+                left_bd_traj_state_list.append(STState(time_step=index, position=[cvar_x[index][0], cvar_y[index][0]]))
+                right_bd_traj_state_list.append(STState(time_step=index, position=[cvar_x[index][1], cvar_y[index][1]]))
+            left_bd_trajectory = Trajectory(initial_time_step=0, state_list=left_bd_traj_state_list)
+            right_bd_trajectory = Trajectory(initial_time_step=0, state_list=right_bd_traj_state_list)
+            bd_trajectory_viz_params = TrajectoryParams(
+                time_begin=0,
+                time_end=int(len(cvar_x) - 13),
+                draw_continuous=True,
+                line_width=1.2,
+                facecolor="red",
+            )
+            render.draw_trajectory(left_bd_trajectory, bd_trajectory_viz_params)
+            render.draw_trajectory(right_bd_trajectory, bd_trajectory_viz_params)
             particals = vehicle_risk_field.particals
             risk_p = particals[2, :, :]
             risk_x = particals[0, :, :]
@@ -869,15 +887,16 @@ class CommonroadEnv(gym.Env):
         plot_limits = compute_plot_limits_from_reachable_sets(reach_interface)
         palette = sns.color_palette("GnBu_d", 3)
         edge_color = (palette[0][0] * 0.75, palette[0][1] * 0.75, palette[0][2] * 0.75)
-        step = min(step + 8, reach_interface.step_end)
+        last_step = min(step + 10, reach_interface.step_end)
         # generate default drawing parameters
         draw_params = generate_default_drawing_parameters(config)
         draw_params.shape.facecolor = palette[0]
         draw_params.shape.edgecolor = edge_color
 
         # draw reachable set
-        list_nodes = reach_interface.drivable_area_at_step(step)
-        draw_drivable_area(list_nodes, config, renderer, draw_params)
+        for step_i in range(step, last_step):
+            list_nodes = reach_interface.reachable_set_at_step(step_i)
+            draw_reachable_sets(list_nodes, config, renderer, draw_params)
 
     @staticmethod
     def render_planner_result(planner_result, render):
