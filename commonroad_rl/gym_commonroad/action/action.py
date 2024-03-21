@@ -416,6 +416,7 @@ class ParameterAction(ContinuousAction):
         action: Union[np.ndarray, int],
         logger: logging.Logger = None,
         reach_interface: ReachableSetInterface = None,
+        only_plan: bool = False,
     ) -> None:
         """
         Function which acts on the current state and generates the new state
@@ -440,6 +441,10 @@ class ParameterAction(ContinuousAction):
         # planning trajectory
 
         trajectory = refine_plan_trajectory if refine_plan_trajectory is not None else plan_trajectory
+
+        if only_plan:
+            return trajectory
+
         if plan_trajectory is not None:
             self.trajectory_history.append(plan_trajectory)
             if refine_plan_trajectory is not None:

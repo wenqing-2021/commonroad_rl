@@ -349,13 +349,19 @@ class CommonroadEnv(gym.Env):
 
         :param action: vehicle acceleration, vehicle steering velocity
         :return: observation, reward, status and other information
+
+        if you use reach_interface, makesure the input is dict{"action":action, "reach_interface":reach_interface}.
         """
         # check the action has risk result
+        reach_interface = None
+        only_plan = False
         if isinstance(action, Dict):
             if "risk_info" in action.keys():
                 risk_info = action["risk_info"]
             if "reach_interface" in action.keys():
                 reach_interface = action["reach_interface"]
+            if "only_plan" in action.keys():
+                only_plan = action["only_plan"]
 
             # get the action
             action = action["action"]
@@ -369,12 +375,26 @@ class CommonroadEnv(gym.Env):
                 action = np.clip(action, a_min=self.action_space.low, a_max=self.action_space.high)
             elif self.action_configs["action_type"] == "parameters":
                 action = np.clip(action, a_min=self.action_space.low, a_max=self.action_space.high)
-                if not self.action_configs["refine_trajectory"]:
+                if not self.action_configs["refine_trajectory"] or reach_interface is None:
                     action_false = self.ego_action.step(
                         action,
                         logger=LOGGER,
                     )
                 else:
+                    if only_plan:
+                        refine_trajectory = self.ego_action.step(
+                            action,
+                            logger=LOGGER,
+                            reach_interface=reach_interface,
+                            only_plan=only_plan,
+                        )
+                        return (
+                            np.array([0.0]),
+                            0.0,
+                            True,
+                            False,
+                            {"cost": 0.0, "refine_trajectory": refine_trajectory},
+                        )
                     action_false = self.ego_action.step(action, logger=LOGGER, reach_interface=reach_interface)
             else:
                 self.ego_action.step(action, local_ccosy=self.observation_collector.local_ccosy)
@@ -846,6 +866,7 @@ class CommonroadEnv(gym.Env):
         for vehicle_risk_field in vehicle_risk_field_list:
             # get the original trajectory of the surrounding vehicles
             original_traj = vehicle_risk_field.original_traj
+            # original_traj = vehicle_risk_field.mean_states[:, :2]
             # construct trajectory for visualization
             traj_state_list = []
             for index, pts in enumerate(original_traj):
@@ -853,12 +874,12 @@ class CommonroadEnv(gym.Env):
             trajectory = Trajectory(initial_time_step=0, state_list=traj_state_list)
             trajectory_viz_params = TrajectoryParams(
                 time_begin=0,
-                time_end=int(len(original_traj) - 13),
+                time_end=int(len(original_traj)),
                 draw_continuous=True,
                 line_width=1.2,
                 facecolor="blue",
             )
-            render.draw_trajectory(trajectory, trajectory_viz_params)
+            # render.draw_trajectory(trajectory, trajectory_viz_params)
             cvar_x = vehicle_risk_field.gpr_result.CVaR_x
             cvar_y = vehicle_risk_field.gpr_result.CVaR_y
             left_bd_traj_state_list = []
@@ -875,8 +896,8 @@ class CommonroadEnv(gym.Env):
                 line_width=1.2,
                 facecolor="red",
             )
-            render.draw_trajectory(left_bd_trajectory, bd_trajectory_viz_params)
-            render.draw_trajectory(right_bd_trajectory, bd_trajectory_viz_params)
+            # render.draw_trajectory(left_bd_trajectory, bd_trajectory_viz_params)
+            # render.draw_trajectory(right_bd_trajectory, bd_trajectory_viz_params)
             particals = vehicle_risk_field.particals
             risk_p = particals[2, :, :]
             risk_x = particals[0, :, :]
