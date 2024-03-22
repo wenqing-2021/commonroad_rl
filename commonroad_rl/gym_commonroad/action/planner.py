@@ -99,7 +99,7 @@ class PlanTrajectory:
         traj_color = kwargs.get("traj_color", (217 / 255, 79 / 255, 51 / 255))
         trajectory_viz_params = TrajectoryParams(
             time_begin=0,
-            time_end=len(self.cart_x) - 5,
+            time_end=len(self.cart_x),
             draw_continuous=True,
             line_width=2.0,
             facecolor=traj_color,
@@ -323,9 +323,9 @@ class PolynomialPlanner:
         t_series_2 = np.arange(t_series_1[-1], self._plan_t, self._dt) + self._dt
 
         t_series = np.concatenate((t_series_1, t_series_2))
-        traj_s = []
-        traj_ds = []
-        traj_dds = []
+        traj_s = [s]
+        traj_ds = [ds]
+        traj_dds = [dds]
         for t in t_series:
             if t <= t_target:
                 traj_s.append(a0 * t**4 + a1 * t**3 + a2 * t**2 + a3 * t + a4)
@@ -375,9 +375,9 @@ class PolynomialPlanner:
         t_series_2 = np.arange(t_series_1[-1], self._plan_t, self._dt) + self._dt
 
         t_series = np.concatenate((t_series_1, t_series_2))
-        traj_l = []
-        traj_dl = []
-        traj_ddl = []
+        traj_l = [l]
+        traj_dl = [dl]
+        traj_ddl = [ddl]
         for t in t_series:
             if t <= t_target:
                 traj_l.append(b0 * t**5 + b1 * t**4 + b2 * t**3 + b3 * t**2 + b4 * t + b5)
@@ -423,18 +423,18 @@ class PolynomialPlanner:
         b2 = x[2]
 
         s_series = s_list - s_list[0]
-        traj_l = []
-        traj_dl = []
-        traj_ddl = []
+        traj_l = [l]
+        traj_dl = [dl]
+        traj_ddl = [ddl]
         for s in s_series:
             traj_l.append(b0 * s**5 + b1 * s**4 + b2 * s**3 + b3 * s**2 + b4 * s + b5)
             traj_dl.append(5 * b0 * s**4 + 4 * b1 * s**3 + 3 * b2 * s**2 + 2 * b3 * s + b4)
             traj_ddl.append(20 * b0 * s**3 + 12 * b1 * s**2 + 6 * b2 * s + 2 * b3)
 
         return (
-            np.array(traj_l),
-            np.array(traj_dl),
-            np.array(traj_ddl),
+            np.array(traj_l[: self._max_horizon_step]),
+            np.array(traj_dl[: self._max_horizon_step]),
+            np.array(traj_ddl[: self._max_horizon_step]),
         )
 
     def _compute_initial_states(

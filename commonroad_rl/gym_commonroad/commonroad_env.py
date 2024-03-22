@@ -382,7 +382,7 @@ class CommonroadEnv(gym.Env):
                     )
                 else:
                     if only_plan:
-                        refine_trajectory = self.ego_action.step(
+                        refine_trajectory, nodes_vertices = self.ego_action.step(
                             action,
                             logger=LOGGER,
                             reach_interface=reach_interface,
@@ -391,9 +391,13 @@ class CommonroadEnv(gym.Env):
                         return (
                             np.array([0.0]),
                             0.0,
-                            True,
                             False,
-                            {"cost": 0.0, "refine_trajectory": refine_trajectory},
+                            False,
+                            {
+                                "cost": 0.0,
+                                "refine_trajectory": refine_trajectory,
+                                "nodes_vertices": nodes_vertices,
+                            },
                         )
                     action_false = self.ego_action.step(action, logger=LOGGER, reach_interface=reach_interface)
             else:
@@ -585,7 +589,7 @@ class CommonroadEnv(gym.Env):
             draw_continuous=True,
             facecolor="g",
         )
-        # self.cr_render.draw_trajectory(reference_trajectory, reference_viz_params)
+        self.cr_render.draw_trajectory(reference_trajectory, reference_viz_params)
 
         # show tracked state
         # if self.ego_action.matched_state is not None:
@@ -785,6 +789,9 @@ class CommonroadEnv(gym.Env):
 
     @staticmethod
     def step_plan_trajectory(ego_action, navigator, action):
+        """
+        NOT used in the code running
+        """
         trajectory = ego_action.step_plan_traj(action=action, logger=LOGGER)
         if trajectory is None:
             if len(ego_action.trajectory_history) > 0:
@@ -922,7 +929,7 @@ class CommonroadEnv(gym.Env):
         plot_limits = compute_plot_limits_from_reachable_sets(reach_interface)
         palette = sns.color_palette("GnBu_d", 3)
         edge_color = (palette[0][0] * 0.75, palette[0][1] * 0.75, palette[0][2] * 0.75)
-        last_step = min(step + 10, reach_interface.step_end)
+        last_step = reach_interface.step_end
         # generate default drawing parameters
         draw_params = generate_default_drawing_parameters(config)
         draw_params.shape.facecolor = palette[0]
@@ -935,17 +942,23 @@ class CommonroadEnv(gym.Env):
 
     @staticmethod
     def render_planner_result(planner_result, render):
+        def draw_trajectory(trajectory, render, **kwargs):
+            # construct trajectory for visualization
+            traj_state_list = []
+            for index, pts in enumerate(trajectory):
+                traj_state_list.append(STState(time_step=index, position=pts[:2]))
+            trajectory_viz = Trajectory(initial_time_step=0, state_list=traj_state_list)
+            face_color = kwargs.get("facecolor", "green")
+            line_width = kwargs.get("line_width", 1.5)
+            viz_param = TrajectoryParams(
+                time_begin=0,
+                time_end=len(trajectory),
+                draw_continuous=True,
+                line_width=line_width,
+                facecolor=face_color,
+            )
+            render.draw_trajectory(trajectory_viz, viz_param)
+
         warm_start_trajectory = planner_result.warm_start_trajectory
-        # construct trajectory for visualization
-        traj_state_list = []
-        for index, pts in enumerate(warm_start_trajectory):
-            traj_state_list.append(STState(time_step=index, position=pts[:2]))
-        warm_start_trajectory_viz = Trajectory(initial_time_step=0, state_list=traj_state_list)
-        viz_param = TrajectoryParams(
-            time_begin=0,
-            time_end=len(warm_start_trajectory),
-            draw_continuous=True,
-            line_width=1.5,
-            facecolor="green",
-        )
-        render.draw_trajectory(warm_start_trajectory_viz, viz_param)
+        draw_trajectory(warm_start_trajectory, render, facecolor="green")
+        draw_trajectory(planner_result.plan_trajectory, render, facecolor="black")

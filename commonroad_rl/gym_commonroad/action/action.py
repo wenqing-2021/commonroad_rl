@@ -432,9 +432,10 @@ class ParameterAction(ContinuousAction):
         plan_trajectory: PlanTrajectory = self.planner.PlanTraj(
             vehicle=self.vehicle, rescaled_action=rescaled_action, logger=logger
         )
+        nodes_vertices = None
         refine_plan_trajectory: PlanTrajectory = None
         if reach_interface is not None:
-            refine_plan_trajectory = self.refine_trajectory(reach_interface, plan_trajectory)
+            refine_plan_trajectory, nodes_vertices = self.refine_trajectory(reach_interface, plan_trajectory)
 
         # plan_trajectory = self.planner.ReferenceTraj(navigator=navigator)
 
@@ -443,7 +444,7 @@ class ParameterAction(ContinuousAction):
         trajectory = refine_plan_trajectory if refine_plan_trajectory is not None else plan_trajectory
 
         if only_plan:
-            return trajectory
+            return trajectory, nodes_vertices
 
         if plan_trajectory is not None:
             self.trajectory_history.append(plan_trajectory)
@@ -483,7 +484,7 @@ class ParameterAction(ContinuousAction):
 
     def refine_trajectory(
         self, reach_interface: ReachableSetInterface, plan_trajectory: PlanTrajectory
-    ) -> PlanTrajectory:
+    ) -> Tuple[PlanTrajectory, List]:
         def find_nodes_v_range(nodes: List[ReachNodeMultiGeneration]):
             min_v_lon = np.inf
             max_v_lon = -np.inf
@@ -499,9 +500,18 @@ class ParameterAction(ContinuousAction):
         def find_nodes_l_range(nodes: List[ReachNodeMultiGeneration], target_s):
             for node in nodes:
                 if node.p_lon_min <= target_s <= node.p_lon_max:
-                    return node.p_lat_min, node.p_lat_max
+                    return node.p_lat_min, node.p_lat_max, node
 
-            return nodes[0].p_lat_min, nodes[0].p_lat_max
+            return nodes[0].p_lat_min, nodes[0].p_lat_max, nodes[0]
+
+        def convert_cart_pos(position_rectangle, clcs):
+            p_lon_min, p_lat_min, p_lon_max, p_lat_max = position_rectangle.bounds
+            vertex1 = clcs.convert_to_cartesian_coords(p_lon_min, p_lat_min)
+            vertex2 = clcs.convert_to_cartesian_coords(p_lon_max, p_lat_min)
+            vertex3 = clcs.convert_to_cartesian_coords(p_lon_max, p_lat_max)
+            vertex4 = clcs.convert_to_cartesian_coords(p_lon_min, p_lat_max)
+
+            return np.vstack((vertex1, vertex2, vertex3, vertex4))
 
         plan_trajectory_iter = copy.deepcopy(plan_trajectory)
         end_step = min(end_step, reach_interface.step_end)
@@ -518,6 +528,10 @@ class ParameterAction(ContinuousAction):
         valid_target_v = max(min(max_v_T, original_target_v), min_v_T)
         t_series = np.linspace(0, plan_T - self._scenario_dt, int(plan_T / self._scenario_dt))
         # loop the time horizon
+        nodes_vertices = []
+        first_list_nodes = reach_interface.reachable_set_at_step(current_step)
+        first_vertices = convert_cart_pos(first_list_nodes[0].position_rectangle, self.planner.coordinate_system)
+        nodes_vertices.append(first_vertices)
         for step in range(current_step + 1, end_step):
             # get the reachable set at the step
             list_nodes = reach_interface.reachable_set_at_step(step)
@@ -554,7 +568,10 @@ class ParameterAction(ContinuousAction):
             # lateral trajectory refinement
             ## find the target node
             step_target_s = plan_trajectory_iter.frenet_s[step - current_step]
-            min_l, max_l = find_nodes_l_range(list_nodes, step_target_s)
+            min_l, max_l, node = find_nodes_l_range(list_nodes, step_target_s)
+            # store the node vertices for cilqr planner
+            vertices_i = convert_cart_pos(node.position_rectangle, self.planner.coordinate_system)
+            nodes_vertices.append(vertices_i)
             ## check the plan_trajectory
             l = plan_trajectory_iter.frenet_l[step - current_step]
             if not (l >= min_l and l <= max_l):
@@ -663,7 +680,7 @@ class ParameterAction(ContinuousAction):
         final_traj = PlanTrajectory(frenet_traj=frenet_traj, cart_traj=cart_traj, dt=self._scenario_dt)
 
         # update the plan_trajectory
-        return final_traj
+        return final_traj, nodes_vertices
 
 
 def action_constructor(
