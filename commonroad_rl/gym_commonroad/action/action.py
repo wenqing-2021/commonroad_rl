@@ -3,6 +3,7 @@ Module containing the action base class
 """
 
 from commonroad_route_planner.route import Route
+from commonroad.scenario.trajectory import STState
 import gymnasium as gym
 from typing import Union
 import copy
@@ -437,14 +438,15 @@ class ParameterAction(ContinuousAction):
             nodes_vertices = None
             if reach_interface is not None:
                 refine_plan_trajectory, nodes_vertices = self.refine_trajectory(reach_interface, plan_trajectory)
+                if refine_plan_trajectory is None and self.refine_traj_history.__len__() > 0:
+                    refine_plan_trajectory = self.refine_traj_history[-1]
+
                 if refine_plan_trajectory is not None:
                     self.refine_traj_history.append(refine_plan_trajectory)
+
         else:
             # construct PlanTrajectory from ilqr_traj
-            plan_trajectory = ParameterAction.convert_ilqr2plantraj(
-                ilqr_trajectory=ilqr_traj,
-                wheel_base=(self.vehicle.parameters.a + self.vehicle.parameters.b),
-            )
+            plan_trajectory = self._convert_ilqr2plantraj(ilqr_trajectory=ilqr_traj, logger=logger)
         # planning trajectory
 
         track_trajectory = refine_plan_trajectory if refine_plan_trajectory is not None else plan_trajectory
@@ -534,6 +536,9 @@ class ParameterAction(ContinuousAction):
         # loop the time horizon
         nodes_vertices = []
         first_list_nodes = reach_interface.reachable_set_at_step(current_step)
+        if len(first_list_nodes) < 1:
+            # no reachable set at the step
+            return None, None
         first_vertices = convert_cart_pos(first_list_nodes[0].position_rectangle, self.planner.coordinate_system)
         nodes_vertices.append(first_vertices)
         for step in range(current_step + 1, end_step):
@@ -686,8 +691,7 @@ class ParameterAction(ContinuousAction):
         # update the plan_trajectory
         return final_traj, nodes_vertices
 
-    @staticmethod
-    def convert_ilqr2plantraj(ilqr_trajectory: np.ndarray, wheel_base: float = None) -> PlanTrajectory:
+    def _convert_ilqr2plantraj(self, ilqr_trajectory: np.ndarray, logger: logging.Logger = None) -> PlanTrajectory:
         """
         Convert the ilqr trajectory to PlanTrajectory
         :param ilqr_trajectory: ilqr trajectory
@@ -699,9 +703,41 @@ class ParameterAction(ContinuousAction):
         cart_v = ilqr_trajectory[:, 3]
         cart_a = ilqr_trajectory[:, 4]
         cart_steer_angle = ilqr_trajectory[:, 5]
-        cart_kappa = np.tan(cart_steer_angle) / wheel_base
+        cart_kappa = np.tan(cart_steer_angle) / (self.vehicle.parameters.a + self.vehicle.parameters.b)
+
+        wheel_base = self.vehicle.parameters.a + self.vehicle.parameters.b
+        frenet_s = []
+        frenet_ds = []
+        frenet_dds = []
+        frenet_l = []
+        frenet_dl = []
+        frenet_ddl = []
+        for x, y, theta, v, a, steer_angle in zip(cart_x, cart_y, cart_theta, cart_v, cart_a, cart_steer_angle):
+            st_state = STState(position=(x, y), orientation=theta, velocity=v)
+            low_vel_mode = True if v < 4 else False
+            state_lon, state_lat = PolynomialPlanner.compute_frenet_states(
+                x_0=st_state,
+                acc=a,
+                steering_angle=steer_angle,
+                logger=logger,
+                CLCS=self.planner._co,
+                whee_base=wheel_base,
+                low_vel_mode=low_vel_mode,
+            )
+            s, ds, dds = state_lon
+            l, dl, ddl = state_lat
+            frenet_s.append(s)
+            frenet_ds.append(ds)
+            frenet_dds.append(dds)
+            frenet_l.append(l)
+            frenet_dl.append(dl)
+            frenet_ddl.append(ddl)
+
+        # construct frenet trajectory
         cart_traj = [cart_x, cart_y, cart_theta, cart_kappa, cart_v, cart_a]
-        final_traj = PlanTrajectory(dt=0.1, cart_traj=cart_traj)
+        frenet_traj = [frenet_s, frenet_ds, frenet_dds, frenet_l, frenet_dl, frenet_ddl]
+        final_traj = PlanTrajectory(dt=0.1, cart_traj=cart_traj, frenet_traj=frenet_traj)
+
         return final_traj
 
 

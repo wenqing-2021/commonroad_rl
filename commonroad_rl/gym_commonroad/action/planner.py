@@ -69,6 +69,9 @@ class PlanTrajectory:
         cart_traj: List[np.ndarray] = None,
         dt: float = 0.1,
     ) -> None:
+        if frenet_traj is None and cart_traj is None:
+            raise ValueError("Both frenet_traj and cart_traj are None!")
+
         # [traj_s, traj_ds, traj_dds, traj_l, traj_dl, traj_ddl]
         if frenet_traj is not None:
             self.frenet_traj = frenet_traj
@@ -228,11 +231,14 @@ class PolynomialPlanner:
         self._low_vel_mode = False
         if current_state.velocity < 4.0:
             self._low_vel_mode = True
-        s_0_list, l_0_list = self._compute_initial_states(
+        s_0_list, l_0_list = PolynomialPlanner.compute_frenet_states(
             current_state,
             vehicle.current_action[1],
             vehicle.current_action[0],
             logger=logger,
+            CLCS=self._co,
+            whee_base=(self._vehicle_params.a + self._vehicle_params.b),
+            low_vel_mode=self._low_vel_mode,
         )
         if s_0_list is None and l_0_list is None:
             return None
@@ -440,12 +446,15 @@ class PolynomialPlanner:
             np.array(traj_ddl[: self._max_horizon_step]),
         )
 
-    def _compute_initial_states(
-        self,
+    @staticmethod
+    def compute_frenet_states(
         x_0: STState,
         acc: float = None,
         steering_angle: float = None,
         logger: logging.Logger = None,
+        CLCS: CoordinateSystem = None,
+        whee_base: float = None,
+        low_vel_mode: bool = False,
     ):
         """
         Computes the curvilinear initial states for the polynomial planner based on the Cartesian initial state
@@ -454,32 +463,32 @@ class PolynomialPlanner:
         """
         # compute curvilinear position
         try:
-            s, d = self._co.convert_to_curvilinear_coords(x_0.position[0], x_0.position[1])
+            s, d = CLCS.convert_to_curvilinear_coords(x_0.position[0], x_0.position[1])
         except:
             logger.debug("Initial state could not be transformed.")
             return None, None
 
         # factor for interpolation
-        s_idx = np.argmax(self._co.ref_pos > s) - 1
-        s_lambda = (s - self._co.ref_pos[s_idx]) / (self._co.ref_pos[s_idx + 1] - self._co.ref_pos[s_idx])
+        s_idx = np.argmax(CLCS.ref_pos > s) - 1
+        s_lambda = (s - CLCS.ref_pos[s_idx]) / (CLCS.ref_pos[s_idx + 1] - CLCS.ref_pos[s_idx])
 
         # compute orientation in curvilinear coordinate frame
-        ref_theta = np.unwrap(self._co.ref_theta)
+        ref_theta = np.unwrap(CLCS.ref_theta)
         theta_cl = x_0.orientation - interpolate_angle(
             s,
-            self._co.ref_pos[s_idx],
-            self._co.ref_pos[s_idx + 1],
+            CLCS.ref_pos[s_idx],
+            CLCS.ref_pos[s_idx + 1],
             ref_theta[s_idx],
             ref_theta[s_idx + 1],
         )
 
         # compute reference curvature
-        kr = (self._co.ref_curv[s_idx + 1] - self._co.ref_curv[s_idx]) * s_lambda + self._co.ref_curv[s_idx]
+        kr = (CLCS.ref_curv[s_idx + 1] - CLCS.ref_curv[s_idx]) * s_lambda + CLCS.ref_curv[s_idx]
         # compute reference curvature change
-        kr_d = (self._co.ref_curv_d[s_idx + 1] - self._co.ref_curv_d[s_idx]) * s_lambda + self._co.ref_curv_d[s_idx]
+        kr_d = (CLCS.ref_curv_d[s_idx + 1] - CLCS.ref_curv_d[s_idx]) * s_lambda + CLCS.ref_curv_d[s_idx]
 
         # compute initial ego curvature from initial steering angle
-        kappa_0 = np.tan(steering_angle) / (self._vehicle_params.a + self._vehicle_params.b)
+        kappa_0 = np.tan(steering_angle) / (whee_base)
 
         # compute d' and d'' -> derivation after arclength (s): see Eq. (A.3) and (A.5) in Diss. Werling
         d_p = (1 - kr * d) * np.tan(theta_cl)
@@ -504,7 +513,7 @@ class PolynomialPlanner:
         s_acceleration /= (1 - kr * d) / (math.cos(theta_cl))
 
         # compute d dot (d_velocity) and d dot dot (d_acceleration)
-        if self._low_vel_mode:
+        if low_vel_mode:
             # in LOW_VEL_MODE: d_velocity and d_acceleration are derivatives w.r.t arclength (s)
             d_velocity = d_p
             d_acceleration = d_pp
