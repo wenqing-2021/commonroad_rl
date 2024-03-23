@@ -355,6 +355,10 @@ class CommonroadEnv(gym.Env):
         # check the action has risk result
         reach_interface = None
         only_plan = False
+        only_forward = False
+        ilqr_traj = None
+
+        # extract action and info
         if isinstance(action, Dict):
             if "risk_info" in action.keys():
                 risk_info = action["risk_info"]
@@ -362,6 +366,10 @@ class CommonroadEnv(gym.Env):
                 reach_interface = action["reach_interface"]
             if "only_plan" in action.keys():
                 only_plan = action["only_plan"]
+            if "only_forward" in action.keys():
+                only_forward = action["only_forward"]
+            if "ilqr_traj" in action.keys():
+                ilqr_traj = action["ilqr_traj"]
 
             # get the action
             action = action["action"]
@@ -375,31 +383,34 @@ class CommonroadEnv(gym.Env):
                 action = np.clip(action, a_min=self.action_space.low, a_max=self.action_space.high)
             elif self.action_configs["action_type"] == "parameters":
                 action = np.clip(action, a_min=self.action_space.low, a_max=self.action_space.high)
-                if not self.action_configs["refine_trajectory"] or reach_interface is None:
-                    action_false = self.ego_action.step(
+                if only_forward:
+                    # track the ilqr traj
+                    action_false = self.ego_action.step(action=action, logger=LOGGER, ilqr_traj=ilqr_traj)
+                elif only_plan:
+                    # only genertae the refine traj for ilqr planning
+                    refine_trajectory, nodes_vertices = self.ego_action.step(
                         action,
                         logger=LOGGER,
+                        reach_interface=reach_interface,
+                        only_plan=only_plan,
                     )
-                else:
-                    if only_plan:
-                        refine_trajectory, nodes_vertices = self.ego_action.step(
-                            action,
-                            logger=LOGGER,
-                            reach_interface=reach_interface,
-                            only_plan=only_plan,
-                        )
-                        return (
-                            np.array([0.0]),
-                            0.0,
-                            False,
-                            False,
-                            {
-                                "cost": 0.0,
-                                "refine_trajectory": refine_trajectory,
-                                "nodes_vertices": nodes_vertices,
-                            },
-                        )
+                    return (
+                        np.array([0.0]),
+                        0.0,
+                        False,
+                        False,
+                        {
+                            "cost": 0.0,
+                            "refine_trajectory": refine_trajectory,
+                            "nodes_vertices": nodes_vertices,
+                        },
+                    )
+                elif reach_interface is not None:
+                    # use rl action + reach set to generate polynominal traj, and track the refine traj
                     action_false = self.ego_action.step(action, logger=LOGGER, reach_interface=reach_interface)
+                else:
+                    # directly use rl action to generate polynominal traj
+                    action_false = self.ego_action.step(action, logger=LOGGER)
             else:
                 self.ego_action.step(action, local_ccosy=self.observation_collector.local_ccosy)
         LOGGER.debug(
@@ -960,5 +971,5 @@ class CommonroadEnv(gym.Env):
             render.draw_trajectory(trajectory_viz, viz_param)
 
         warm_start_trajectory = planner_result.warm_start_trajectory
-        draw_trajectory(warm_start_trajectory, render, facecolor="green")
+        # draw_trajectory(warm_start_trajectory, render, facecolor="green")
         draw_trajectory(planner_result.plan_trajectory, render, facecolor="black")

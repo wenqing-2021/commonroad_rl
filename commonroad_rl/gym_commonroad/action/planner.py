@@ -70,21 +70,24 @@ class PlanTrajectory:
         dt: float = 0.1,
     ) -> None:
         # [traj_s, traj_ds, traj_dds, traj_l, traj_dl, traj_ddl]
-        self._frenet_traj = frenet_traj
+        if frenet_traj is not None:
+            self.frenet_traj = frenet_traj
+            self.frenet_s = frenet_traj[0]
+            self.frenet_l = frenet_traj[3]
+            self.frenet_ds = frenet_traj[1]
+            self.frenet_dl = frenet_traj[4]
+            self.frenet_dds = frenet_traj[2]
+            self.frenet_ddl = frenet_traj[5]
         # [traj_x, traj_y, traj_theta, traj_kappa, traj_v, traj_a]
-        self.cart_traj = cart_traj
-        self.frenet_s = frenet_traj[0]
-        self.frenet_l = frenet_traj[3]
-        self.frenet_ds = frenet_traj[1]
-        self.frenet_dl = frenet_traj[4]
-        self.frenet_dds = frenet_traj[2]
-        self.frenet_ddl = frenet_traj[5]
-        self.cart_x = cart_traj[0]
-        self.cart_y = cart_traj[1]
-        self.cart_theta = cart_traj[2]  # velocity direction with the x axis
-        self.cart_kappa = cart_traj[3]
-        self.cart_v = cart_traj[4]
-        self.cart_a = cart_traj[5]
+        if cart_traj is not None:
+            self.cart_traj = cart_traj
+            self.cart_x = cart_traj[0]
+            self.cart_y = cart_traj[1]
+            self.cart_theta = cart_traj[2]  # velocity direction with the x axis
+            self.cart_kappa = cart_traj[3]
+            self.cart_v = cart_traj[4]
+            self.cart_a = cart_traj[5]
+
         self.dt = dt
 
     @property

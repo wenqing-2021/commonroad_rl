@@ -417,6 +417,7 @@ class ParameterAction(ContinuousAction):
         logger: logging.Logger = None,
         reach_interface: ReachableSetInterface = None,
         only_plan: bool = False,
+        ilqr_traj: np.ndarray = None,
     ) -> None:
         """
         Function which acts on the current state and generates the new state
@@ -426,37 +427,40 @@ class ParameterAction(ContinuousAction):
         :return: New state of ego vehicle
         """
         rescaled_action = self.rescale_action(action)
+        refine_plan_trajectory: PlanTrajectory = None
         # coordinate_system = CoordinateSystem(
         #     reference=navigator.route.reference_path, ccosy=local_ccosy)
-
-        plan_trajectory: PlanTrajectory = self.planner.PlanTraj(
-            vehicle=self.vehicle, rescaled_action=rescaled_action, logger=logger
-        )
-        nodes_vertices = None
-        refine_plan_trajectory: PlanTrajectory = None
-        if reach_interface is not None:
-            refine_plan_trajectory, nodes_vertices = self.refine_trajectory(reach_interface, plan_trajectory)
-
-        # plan_trajectory = self.planner.ReferenceTraj(navigator=navigator)
-
+        if ilqr_traj is None:
+            plan_trajectory: PlanTrajectory = self.planner.PlanTraj(
+                vehicle=self.vehicle, rescaled_action=rescaled_action, logger=logger
+            )
+            nodes_vertices = None
+            if reach_interface is not None:
+                refine_plan_trajectory, nodes_vertices = self.refine_trajectory(reach_interface, plan_trajectory)
+                if refine_plan_trajectory is not None:
+                    self.refine_traj_history.append(refine_plan_trajectory)
+        else:
+            # construct PlanTrajectory from ilqr_traj
+            plan_trajectory = ParameterAction.convert_ilqr2plantraj(
+                ilqr_trajectory=ilqr_traj,
+                wheel_base=(self.vehicle.parameters.a + self.vehicle.parameters.b),
+            )
         # planning trajectory
 
-        trajectory = refine_plan_trajectory if refine_plan_trajectory is not None else plan_trajectory
+        track_trajectory = refine_plan_trajectory if refine_plan_trajectory is not None else plan_trajectory
 
         if only_plan:
-            return trajectory, nodes_vertices
+            return track_trajectory, nodes_vertices
 
-        if plan_trajectory is not None:
-            self.trajectory_history.append(plan_trajectory)
-            if refine_plan_trajectory is not None:
-                self.refine_traj_history.append(refine_plan_trajectory)
+        if track_trajectory is not None:
+            self.trajectory_history.append(track_trajectory)
         else:
             return True
         # update vehicle state
         t_step = 0
         while t_step < self._scenario_dt:
             # match trajectory
-            matched_state = self.controller.match_trajectory(self.vehicle.state, trajectory, t_step)
+            matched_state = self.controller.match_trajectory(self.vehicle.state, track_trajectory, t_step)
             # logger.debug(
             #     f'matched_state: vecl is {matched_state.velocity}'
             # )
@@ -681,6 +685,24 @@ class ParameterAction(ContinuousAction):
 
         # update the plan_trajectory
         return final_traj, nodes_vertices
+
+    @staticmethod
+    def convert_ilqr2plantraj(ilqr_trajectory: np.ndarray, wheel_base: float = None) -> PlanTrajectory:
+        """
+        Convert the ilqr trajectory to PlanTrajectory
+        :param ilqr_trajectory: ilqr trajectory
+        :return: PlanTrajectory
+        """
+        cart_x = ilqr_trajectory[:, 0]
+        cart_y = ilqr_trajectory[:, 1]
+        cart_theta = ilqr_trajectory[:, 2]
+        cart_v = ilqr_trajectory[:, 3]
+        cart_a = ilqr_trajectory[:, 4]
+        cart_steer_angle = ilqr_trajectory[:, 5]
+        cart_kappa = np.tan(cart_steer_angle) / wheel_base
+        cart_traj = [cart_x, cart_y, cart_theta, cart_kappa, cart_v, cart_a]
+        final_traj = PlanTrajectory(dt=0.1, cart_traj=cart_traj)
+        return final_traj
 
 
 def action_constructor(
