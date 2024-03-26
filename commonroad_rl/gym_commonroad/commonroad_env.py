@@ -26,6 +26,7 @@ from commonroad_reach.utility.visualization import (
     draw_drivable_area,
 )
 from commonroad_reach.data_structure.reach.reach_interface import ReachableSetInterface
+from reachable_set.reachable_set import ReachSet
 
 # import from commonroad-io
 from commonroad.scenario.scenario import ScenarioID, Scenario
@@ -85,6 +86,8 @@ class CommonroadEnv(gym.Env):
         play=False,
         config_file=PATH_PARAMS["configs"]["commonroad-v1"],
         logging_mode=1,
+        use_safe_rl=False,
+        use_reach_set=False,
         **kwargs,
     ) -> None:
         """
@@ -101,7 +104,9 @@ class CommonroadEnv(gym.Env):
             LOGGER.addHandler(stream_handler)
 
             if logging_path is not None:
-                file_handler = logging.FileHandler(filename=os.path.join(logging_path, "console_copy.txt"))
+                file_handler = logging.FileHandler(
+                    filename=os.path.join(logging_path, "console_copy.txt")
+                )
                 file_handler.setLevel(logging_mode)
                 file_handler.setFormatter(formatter)
                 LOGGER.addHandler(file_handler)
@@ -156,7 +161,10 @@ class CommonroadEnv(gym.Env):
         # self.cache_goal_obs = dict()
 
         if isinstance(meta_scenario_path, (str, pathlib.Path)):
-            meta_scenario_reset_dict_path = pathlib.Path(self.meta_scenario_path) / "meta_scenario_reset_dict.pickle"
+            meta_scenario_reset_dict_path = (
+                pathlib.Path(self.meta_scenario_path)
+                / "meta_scenario_reset_dict.pickle"
+            )
             with meta_scenario_reset_dict_path.open("rb") as f:
                 self.meta_scenario_reset_dict = pickle.load(f)
         else:
@@ -178,13 +186,17 @@ class CommonroadEnv(gym.Env):
             else:
                 self.all_problem_dict = train_reset_config_path
             self.is_test_env = False
-            LOGGER.info(f"Training on {train_reset_config_path} with {len(self.all_problem_dict.keys())} scenarios")
+            LOGGER.info(
+                f"Training on {train_reset_config_path} with {len(self.all_problem_dict.keys())} scenarios"
+            )
         else:
             if isinstance(test_reset_config_path, (str, pathlib.Path)):
                 self.all_problem_dict = load_reset_config(test_reset_config_path)
             else:
                 self.all_problem_dict = test_reset_config_path
-            LOGGER.info(f"Testing on {test_reset_config_path} with {len(self.all_problem_dict.keys())} scenarios")
+            LOGGER.info(
+                f"Testing on {test_reset_config_path} with {len(self.all_problem_dict.keys())} scenarios"
+            )
 
         self.visualization_path = visualization_path
 
@@ -192,11 +204,16 @@ class CommonroadEnv(gym.Env):
         self.terminated = False
         self.termination_reason = None
 
-        action_constrcut_results = action_constructor(self.action_configs, self.vehicle_params)
+        action_constrcut_results = action_constructor(
+            self.action_configs, self.vehicle_params
+        )
 
         self.ego_action: ParameterAction = action_constrcut_results[0]
         self.action_space = action_constrcut_results[1]
         self.ilqr_trajectory = None
+
+        # reachable set
+        self.use_reach_set = use_reach_set
 
         # Observation space
         self.observation_collector = ObservationCollector(self.configs)
@@ -205,7 +222,7 @@ class CommonroadEnv(gym.Env):
         self.reward_function: Reward = reward_constructor.make_reward(self.configs)
         # Cost function
         self.cost_function: Cost = cost_constructor.make_cost(self.configs)
-
+        self.use_safe_rl = use_safe_rl
         # TODO initialize reward class
 
         LOGGER.debug(f"Meta scenario path: {meta_scenario_path}")
@@ -252,7 +269,9 @@ class CommonroadEnv(gym.Env):
                     planning_problem=planning_problem,
                 )
             else:
-                if not self._set_planning_problem(planning_problem_id=planning_problem_id):
+                if not self._set_planning_problem(
+                    planning_problem_id=planning_problem_id
+                ):
                     # this case mean: the problem in this scenario has been explored, and we need to change the scenario
                     self._set_scenario_problem(
                         benchmark_id,
@@ -296,14 +315,17 @@ class CommonroadEnv(gym.Env):
             )
             try:
                 LOGGER.debug(f"benchmark id is {self.benchmark_id}")
-                LOGGER.debug(f"planning problem id is {self.planning_problem.planning_problem_id}")
+                LOGGER.debug(
+                    f"planning problem id is {self.planning_problem.planning_problem_id}"
+                )
                 self.reset_config.update({"enlarge_goal": self._enlarge_goal})
                 self.observation_collector.reset(
                     self.scenario,
                     self.planning_problem,
                     self.reset_config,
                     self.benchmark_id,
-                    clone_collision_checker=scenario is None or planning_problem is None,
+                    clone_collision_checker=scenario is None
+                    or planning_problem is None,
                 )
                 self.reset_renderer()
                 # TODO: remove self._set_goal()
@@ -315,7 +337,9 @@ class CommonroadEnv(gym.Env):
                     self.planning_problem.initial_state,
                     self.ego_action.controller.control_dt,
                 )
-                initial_observation = self.observation_collector.observe(self.ego_action.vehicle)
+                initial_observation = self.observation_collector.observe(
+                    self.ego_action.vehicle
+                )
                 break
             except:
                 continue
@@ -325,13 +349,25 @@ class CommonroadEnv(gym.Env):
 
         self.v_ego_mean = self.ego_action.vehicle.state.velocity
         # TODO: tmp store all observations in info for paper draft, remove afterwards
-        self.observation_list = [self.observation_dict]
+        # self.observation_list = [self.observation_dict]
+        goal_x, goal_y = self.planning_problem.goal.state_list[0].position.center
         self.ego_action.reset(
             self.scenario.dt,
             local_ccosy=self.observation_collector.local_ccosy,
+            goal_region=(goal_x, goal_y),
         )
         self.ilqr_trajectory = None
         info = dict()
+
+        # initial reach set
+        if self.use_reach_set:
+            self.reach_set = ReachSet.build_reach_set(
+                scenario=self.scenario,
+                initial_state=self.ego_action.vehicle.state,
+                clcs=self.observation_collector.local_ccosy,
+            )
+        else:
+            self.reach_set = None
 
         return initial_observation, info
 
@@ -343,7 +379,9 @@ class CommonroadEnv(gym.Env):
     def current_step(self, time_step):
         raise ValueError(f"<CommonroadEnv> Set current_step is prohibited!")
 
-    def step(self, action: Union[np.ndarray, State, Dict]) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(
+        self, action: Union[np.ndarray, State, Dict]
+    ) -> Tuple[np.ndarray, float, bool, bool, dict]:
         """
         Propagate to next time step, compute next observations, reward and status.
 
@@ -380,12 +418,21 @@ class CommonroadEnv(gym.Env):
             self.ego_action.vehicle.set_current_state(ego_state)
         else:
             if self.action_configs["action_type"] == "continuous":
-                action = np.clip(action, a_min=self.action_space.low, a_max=self.action_space.high)
+                action = np.clip(
+                    action, a_min=self.action_space.low, a_max=self.action_space.high
+                )
             elif self.action_configs["action_type"] == "parameters":
-                action = np.clip(action, a_min=self.action_space.low, a_max=self.action_space.high)
+                if isinstance(self.action_space, gym.spaces.Box):
+                    action = np.clip(
+                        action,
+                        a_min=self.action_space.low,
+                        a_max=self.action_space.high,
+                    )
                 if only_forward:
                     # track the ilqr traj
-                    action_false = self.ego_action.step(action=action, logger=LOGGER, ilqr_traj=ilqr_traj)
+                    action_false = self.ego_action.step(
+                        action=action, logger=LOGGER, ilqr_traj=ilqr_traj
+                    )
                 elif only_plan:
                     # only genertae the refine traj for ilqr planning
                     refine_trajectory, nodes_vertices = self.ego_action.step(
@@ -407,12 +454,26 @@ class CommonroadEnv(gym.Env):
                     )
                 elif reach_interface is not None:
                     # use rl action + reach set to generate polynominal traj, and track the refine traj
-                    action_false = self.ego_action.step(action, logger=LOGGER, reach_interface=reach_interface)
+                    action_false = self.ego_action.step(
+                        action, logger=LOGGER, reach_interface=reach_interface
+                    )
                 else:
-                    # directly use rl action to generate polynominal traj
-                    action_false = self.ego_action.step(action, logger=LOGGER)
+                    if self.use_reach_set:
+                        self.reach_set.update_reach_interface(
+                            initial_state=self.ego_action.vehicle.state,
+                            scenario=self.scenario,
+                        )
+                        reach_interface = self.reach_set.reach_interface
+                        action_false = self.ego_action.step(
+                            action, logger=LOGGER, reach_interface=reach_interface
+                        )
+                    else:
+                        # directly use rl action to generate polynominal traj
+                        action_false = self.ego_action.step(action, logger=LOGGER)
             else:
-                self.ego_action.step(action, local_ccosy=self.observation_collector.local_ccosy)
+                self.ego_action.step(
+                    action, local_ccosy=self.observation_collector.local_ccosy
+                )
         LOGGER.debug(
             f"current vehicle position is {self.ego_action.vehicle.state.position}, vel is {self.ego_action.vehicle.state.velocity}"
         )
@@ -422,7 +483,9 @@ class CommonroadEnv(gym.Env):
             return np.array([0.0]), 0.0, True, False, {"cost": 0.0}
 
         # Check for termination
-        done, reason, termination_info = self.termination.is_terminated(self.observation_dict, self.ego_action)
+        done, reason, termination_info = self.termination.is_terminated(
+            self.observation_dict, self.ego_action
+        )
         if reason is not None:
             self.termination_reason = reason
 
@@ -434,13 +497,25 @@ class CommonroadEnv(gym.Env):
             self.terminated = True
 
         # Calculate reward
-        reward = self.reward_function.calc_reward(self.observation_dict, self.ego_action, action_false)
+        reward = self.reward_function.calc_reward(
+            self.observation_dict, self.ego_action, action_false
+        )
 
         # Calculate cost
         cost = self.cost_function.calc_cost(self.observation_dict, self.ego_action)
+        # consider edit cost
+        edit_cost = 0
+        if self.ego_action.edit_cost is not None:
+            edit_cost = (
+                self.ego_action.edit_cost
+                * self.cost_function.cost_config["edit_cost_scale"]
+            )
+        cost += edit_cost
+        if not self.use_safe_rl:
+            reward -= cost
 
         self.v_ego_mean += self.ego_action.vehicle.state.velocity
-        self.observation_list.append(self.observation_list)
+        # self.observation_list.append(self.observation_list)
         # assert str(self.scenario.scenario_id) == self.benchmark_id
         info = {
             "scenario_name": self.benchmark_id,
@@ -449,7 +524,7 @@ class CommonroadEnv(gym.Env):
             "max_episode_time_steps": self.observation_collector.episode_length,
             "termination_reason": self.termination_reason,
             "v_ego_mean": self.v_ego_mean / (self.current_step + 1),
-            "observation_list": self.observation_list,
+            # "observation_list": self.observation_list,
             "cost": cost,
         }
         info.update(termination_info)
@@ -458,7 +533,9 @@ class CommonroadEnv(gym.Env):
             self.configs["surrounding_configs"]["observe_lane_circ_surrounding"]
             or self.configs["surrounding_configs"]["observe_lane_rect_surrounding"]
         ):
-            info["ttc_follow"], info["ttc_lead"] = CommonroadEnv.get_ttc_lead_follow(self.observation_dict)
+            info["ttc_follow"], info["ttc_lead"] = CommonroadEnv.get_ttc_lead_follow(
+                self.observation_dict
+            )
 
         if info["is_collision"] and self.check_collision_type:
             # TODO: what is updated here?
@@ -510,7 +587,10 @@ class CommonroadEnv(gym.Env):
         :return: None
         """
         # Render only every xth timestep, the first and the last
-        if not (self.current_step % self.render_configs["render_skip_timesteps"] == 0 or self.terminated):
+        if not (
+            self.current_step % self.render_configs["render_skip_timesteps"] == 0
+            or self.terminated
+        ):
             return
 
         # update timestep in draw_params
@@ -536,7 +616,9 @@ class CommonroadEnv(gym.Env):
         self.scenario.draw(self.cr_render, self.draw_params)
 
         # Draw certain objects only once
-        if (not self.render_configs["render_combine_frames"] or self.current_step == 0) and not isinstance(mode, int):
+        if (
+            not self.render_configs["render_combine_frames"] or self.current_step == 0
+        ) and not isinstance(mode, int):
             self.planning_problem.draw(self.cr_render)
 
         self.observation_collector.render(self.render_configs, self.cr_render)
@@ -584,7 +666,9 @@ class CommonroadEnv(gym.Env):
             (
                 viz_refine_trajecotry,
                 viz_traj_params,
-            ) = self.ego_action.current_refine_trajectory.convert_to_viz_trajectory(traj_color=traj_color)
+            ) = self.ego_action.current_refine_trajectory.convert_to_viz_trajectory(
+                traj_color=traj_color
+            )
             self.cr_render.draw_trajectory(viz_refine_trajecotry, viz_traj_params)
 
         # show reference
@@ -593,7 +677,9 @@ class CommonroadEnv(gym.Env):
         reference_traj_list = []
         for index, pts in enumerate(reference_pts_list):
             reference_traj_list.append(STState(time_step=index, position=np.array(pts)))
-        reference_trajectory = Trajectory(initial_time_step=0, state_list=reference_traj_list)
+        reference_trajectory = Trajectory(
+            initial_time_step=0, state_list=reference_traj_list
+        )
         reference_viz_params = TrajectoryParams(
             time_begin=0,
             time_end=len(reference_pts_list),
@@ -614,6 +700,31 @@ class CommonroadEnv(gym.Env):
         #     )
 
         # self.ego_action.vehicle.collision_object.draw(self.cr_render, draw_params={"facecolor": "green", "zorder": 30})
+
+        # show reach set
+        if self.reach_set is not None:
+            config = self.reach_set.reach_interface.config
+            plot_limits = compute_plot_limits_from_reachable_sets(
+                self.reach_set.reach_interface
+            )
+            palette = sns.color_palette("GnBu_d", 3)
+            edge_color = (
+                palette[0][0] * 0.75,
+                palette[0][1] * 0.75,
+                palette[0][2] * 0.75,
+            )
+            last_step = self.reach_set.reach_interface.step_end
+            # generate default drawing parameters
+            draw_params = generate_default_drawing_parameters(config)
+            draw_params.shape.facecolor = palette[0]
+            draw_params.shape.edgecolor = edge_color
+
+            # draw reachable set
+            for step_i in range(self.ego_action.vehicle.current_time_step, last_step):
+                list_nodes = self.reach_set.reach_interface.reachable_set_at_step(
+                    step_i
+                )
+                draw_reachable_sets(list_nodes, config, self.cr_render, draw_params)
 
         # Save figure, only if frames should not be combined or simulation is over
         os.makedirs(
@@ -643,12 +754,12 @@ class CommonroadEnv(gym.Env):
                 # TODO: works only for highD, implement range relative to ego orientation
                 # follow ego
                 x, y = self.ego_action.vehicle.state.position
-                range = self.render_configs["render_range"]
+                render_range = self.render_configs["render_range"]
                 self.cr_render.plot_limits = [
-                    x - range[0],
-                    x + range[0],
-                    y - range[1],
-                    y + range[1],
+                    x - render_range[0],
+                    x + render_range[0],
+                    y - render_range[1],
+                    y + render_range[1],
                 ]
 
             if "vec_env_show" in kwargs.keys():
@@ -663,7 +774,9 @@ class CommonroadEnv(gym.Env):
                 else:
                     return None
             else:
-                self.cr_render.render(show=True, filename=filename, keep_static_artists=True)
+                self.cr_render.render(
+                    show=True, filename=filename, keep_static_artists=True
+                )
 
         # =================================================================================================================
         #
@@ -674,10 +787,14 @@ class CommonroadEnv(gym.Env):
     def _reset_used_planning_problem(self, problem_dict: dict = None):
         while not self._planning_problems_queue.empty():
             self._planning_problems_queue.get()
-        for pb_item in problem_dict["planning_problem_set"].planning_problem_dict.items():
+        for pb_item in problem_dict[
+            "planning_problem_set"
+        ].planning_problem_dict.items():
             key_i = pb_item[0]
             self._planning_problems_queue.put(key_i)
-        self.planning_problem_set_dict = problem_dict["planning_problem_set"].planning_problem_dict
+        self.planning_problem_set_dict = problem_dict[
+            "planning_problem_set"
+        ].planning_problem_dict
 
     def _set_planning_problem(self, planning_problem_id=None) -> bool:
         """
@@ -698,13 +815,17 @@ class CommonroadEnv(gym.Env):
                     self._planning_problems_queue.put(temp_queue.get())
 
                 if find_id:
-                    self.planning_problem: PlanningProblem = self.planning_problem_set_dict[planning_problem_id]
+                    self.planning_problem: PlanningProblem = (
+                        self.planning_problem_set_dict[planning_problem_id]
+                    )
                     return True
                 else:
                     return False
             else:
                 pb_key = self._planning_problems_queue.get()
-                self.planning_problem: PlanningProblem = self.planning_problem_set_dict[pb_key]
+                self.planning_problem: PlanningProblem = self.planning_problem_set_dict[
+                    pb_key
+                ]
                 return True
         else:
             return False
@@ -728,11 +849,17 @@ class CommonroadEnv(gym.Env):
             else:
                 if self.play:
                     # pop instead of reusing
-                    LOGGER.debug(f"Number of scenarios left {len(list(self.all_problem_dict.keys()))}")
-                    self.benchmark_id = random.choice(list(self.all_problem_dict.keys()))
+                    LOGGER.debug(
+                        f"Number of scenarios left {len(list(self.all_problem_dict.keys()))}"
+                    )
+                    self.benchmark_id = random.choice(
+                        list(self.all_problem_dict.keys())
+                    )
                     problem_dict = self.all_problem_dict.pop(self.benchmark_id)
                 else:
-                    self.benchmark_id, problem_dict = random.choice(list(self.all_problem_dict.items()))
+                    self.benchmark_id, problem_dict = random.choice(
+                        list(self.all_problem_dict.items())
+                    )
             self._reset_used_planning_problem(problem_dict=problem_dict)
             # Set reset config dictionary
             scenario_id = ScenarioID.from_benchmark_id(self.benchmark_id, "2020a")
@@ -799,45 +926,6 @@ class CommonroadEnv(gym.Env):
         return ttc_follow, ttc_lead
 
     @staticmethod
-    def step_plan_trajectory(ego_action, navigator, action):
-        """
-        NOT used in the code running
-        """
-        trajectory = ego_action.step_plan_traj(action=action, logger=LOGGER)
-        if trajectory is None:
-            if len(ego_action.trajectory_history) > 0:
-                trajectory = ego_action.trajectory_history[-1]
-            else:
-                trajectory = ego_action.planner.ReferenceTraj(navigator=navigator)
-                # get the closet point on the reference trajectory
-                position = np.array([trajectory.cart_x, trajectory.cart_y]).transpose()
-                current_position = ego_action.vehicle.state.position
-                current_v = ego_action.vehicle.state.velocity
-                distance = np.linalg.norm(current_position - position, axis=1)
-                min_index = np.argmin(distance)
-                end_index = min(min_index + 30, len(trajectory.cart_x))
-                trajectory = np.array(
-                    [
-                        trajectory.cart_x[min_index:end_index],
-                        trajectory.cart_y[min_index:end_index],
-                        trajectory.cart_theta[min_index:end_index],
-                        np.ones(end_index - min_index) * current_v,
-                    ]
-                ).transpose()
-                return trajectory
-
-        trajectory = np.array(
-            [
-                trajectory.cart_x,
-                trajectory.cart_y,
-                trajectory.cart_theta,
-                trajectory.cart_v,
-            ]
-        ).transpose()
-
-        return trajectory
-
-    @staticmethod
     def render_vec_env(
         env: gym.vector.VectorEnv = None,
         risk_result_list=None,
@@ -865,7 +953,9 @@ class CommonroadEnv(gym.Env):
                     CommonroadEnv.render_risk_result(risk_result, render)
                 # show reachable set
                 if reachable_set_interface is not None:
-                    CommonroadEnv.render_reachable_set(reachable_set_interface, time_step, render)
+                    CommonroadEnv.render_reachable_set(
+                        reachable_set_interface, time_step, render
+                    )
                 # show planner result
                 if planner_result is not None:
                     CommonroadEnv.render_planner_result(planner_result, render)
@@ -875,7 +965,9 @@ class CommonroadEnv(gym.Env):
                     keep_static_artists=render_dict["keep_static_artists"],
                 )
             else:
-                raise ValueError("render_dict is None, check the render function in ComonroadEnv")
+                raise ValueError(
+                    "render_dict is None, check the render function in ComonroadEnv"
+                )
 
     @staticmethod
     def render_risk_result(risk_result=None, render=None):
@@ -903,10 +995,22 @@ class CommonroadEnv(gym.Env):
             left_bd_traj_state_list = []
             right_bd_traj_state_list = []
             for index in range(len(cvar_x)):
-                left_bd_traj_state_list.append(STState(time_step=index, position=[cvar_x[index][0], cvar_y[index][0]]))
-                right_bd_traj_state_list.append(STState(time_step=index, position=[cvar_x[index][1], cvar_y[index][1]]))
-            left_bd_trajectory = Trajectory(initial_time_step=0, state_list=left_bd_traj_state_list)
-            right_bd_trajectory = Trajectory(initial_time_step=0, state_list=right_bd_traj_state_list)
+                left_bd_traj_state_list.append(
+                    STState(
+                        time_step=index, position=[cvar_x[index][0], cvar_y[index][0]]
+                    )
+                )
+                right_bd_traj_state_list.append(
+                    STState(
+                        time_step=index, position=[cvar_x[index][1], cvar_y[index][1]]
+                    )
+                )
+            left_bd_trajectory = Trajectory(
+                initial_time_step=0, state_list=left_bd_traj_state_list
+            )
+            right_bd_trajectory = Trajectory(
+                initial_time_step=0, state_list=right_bd_traj_state_list
+            )
             bd_trajectory_viz_params = TrajectoryParams(
                 time_begin=0,
                 time_end=int(len(cvar_x) - 13),
@@ -926,7 +1030,9 @@ class CommonroadEnv(gym.Env):
                     center_x = risk_x[i, j]
                     center_y = risk_y[i, j]
                     risk = risk_p[i, j]
-                    circle_viz_params = ShapeParams(opacity=risk, facecolor="gold", edgecolor="gold")
+                    circle_viz_params = ShapeParams(
+                        opacity=risk, facecolor="gold", edgecolor="gold"
+                    )
                     render.draw_ellipse(
                         center=[center_x, center_y],
                         radius_x=0.25,

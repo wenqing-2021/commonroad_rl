@@ -35,8 +35,8 @@ import time
 import commonroad_dc.pycrcc as pycrcc
 from commonroad_dc.pycrccosy import CurvilinearCoordinateSystem
 
-KCONSTV = 1.5
-MAX_KCONSTV = 15.0
+KCONSTV = 5.0
+MAX_KCONSTV = 22.0
 LOW_S_DELTA_D = 0.1
 
 
@@ -227,7 +227,9 @@ class PolynomialPlanner:
 
         # find current s, l
         current_state: STState = vehicle.state
-        logger.debug(f"current vehicle velocity is {current_state.velocity}, target velocity is {target_v}")
+        logger.debug(
+            f"current vehicle velocity is {current_state.velocity}, target velocity is {target_v}"
+        )
         self._low_vel_mode = False
         if current_state.velocity < 4.0:
             self._low_vel_mode = True
@@ -252,16 +254,22 @@ class PolynomialPlanner:
 
         logger.debug(f"current s is {s_0}, ds is {ds_0}, dds is {dds_0}")
         logger.debug(f"current l is {l_0}, dl is {dl_0}, ddl is {ddl_0}")
-        traj_s, traj_ds, traj_dds = self.quartic_polynomial(s_0, ds_0, dds_0, target_v, max_plan_time)
+        traj_s, traj_ds, traj_dds = self.quartic_polynomial(
+            s_0, ds_0, dds_0, target_v, max_plan_time
+        )
         traj_s, traj_ds, traj_dds = self._check_s_traj(
             traj_s=traj_s,
             traj_ds=traj_ds,
             traj_dds=traj_dds,
         )
         if not self._low_vel_mode:
-            traj_l, traj_dl, traj_ddl = self.quintic_polynomial(l_0, dl_0, ddl_0, target_d, 0.0, 0.0, lat_time)
+            traj_l, traj_dl, traj_ddl = self.quintic_polynomial(
+                l_0, dl_0, ddl_0, target_d, 0.0, 0.0, lat_time
+            )
         else:
-            traj_l, traj_dl, traj_ddl = self.quintic_polynomial_with_s(l_0, dl_0, ddl_0, target_d, 0.0, 0.0, traj_s)
+            traj_l, traj_dl, traj_ddl = self.quintic_polynomial_with_s(
+                l_0, dl_0, ddl_0, target_d, 0.0, 0.0, traj_s
+            )
         # save the initial state info
         self.initial_state_dict = {
             "s_0": s_0,
@@ -274,7 +282,9 @@ class PolynomialPlanner:
         }
         frenet_traj = [traj_s, traj_ds, traj_dds, traj_l, traj_dl, traj_ddl]
 
-        valid_frenet_traj: List[np.ndarray] = self._check_valid_frenet_traj(frenet_traj=frenet_traj)
+        valid_frenet_traj: List[np.ndarray] = self._check_valid_frenet_traj(
+            frenet_traj=frenet_traj
+        )
 
         cart_traj = self._get_cart_traj(valid_frenet_traj)
 
@@ -301,13 +311,17 @@ class PolynomialPlanner:
             # plt.plot(traj_ddl)
             # plt.title("ddl-t")
             # plt.show()
-            logger.warning("Cartesian trajectory is None or length is not equal to Frenet trajectory!")
+            logger.warning(
+                "Cartesian trajectory is None or length is not equal to Frenet trajectory!"
+            )
             return None
 
         if not self._valid_cart_traj(cartesian_traj=cart_traj, logger=logger):
             return None
 
-        trajectory = PlanTrajectory(frenet_traj=frenet_traj, cart_traj=cart_traj, dt=self._dt)
+        trajectory = PlanTrajectory(
+            frenet_traj=frenet_traj, cart_traj=cart_traj, dt=self._dt
+        )
 
         self._trajectory = trajectory
 
@@ -320,7 +334,9 @@ class PolynomialPlanner:
         a3 = ds
         a2 = dds / 2.0
 
-        A = np.array([[4 * t_target**3, 3 * t_target**2], [12 * t_target**2, 6 * t_target]])
+        A = np.array(
+            [[4 * t_target**3, 3 * t_target**2], [12 * t_target**2, 6 * t_target]]
+        )
         b = np.array([v_target - a3 - 2 * t_target * a2, -2 * a2])
 
         x = np.linalg.solve(A, b)
@@ -389,8 +405,12 @@ class PolynomialPlanner:
         traj_ddl = [ddl]
         for t in t_series:
             if t <= t_target:
-                traj_l.append(b0 * t**5 + b1 * t**4 + b2 * t**3 + b3 * t**2 + b4 * t + b5)
-                traj_dl.append(5 * b0 * t**4 + 4 * b1 * t**3 + 3 * b2 * t**2 + 2 * b3 * t + b4)
+                traj_l.append(
+                    b0 * t**5 + b1 * t**4 + b2 * t**3 + b3 * t**2 + b4 * t + b5
+                )
+                traj_dl.append(
+                    5 * b0 * t**4 + 4 * b1 * t**3 + 3 * b2 * t**2 + 2 * b3 * t + b4
+                )
                 traj_ddl.append(20 * b0 * t**3 + 12 * b1 * t**2 + 6 * b2 * t + 2 * b3)
             else:
                 traj_l.append(traj_l[-1])
@@ -437,7 +457,9 @@ class PolynomialPlanner:
         traj_ddl = [ddl]
         for s in s_series:
             traj_l.append(b0 * s**5 + b1 * s**4 + b2 * s**3 + b3 * s**2 + b4 * s + b5)
-            traj_dl.append(5 * b0 * s**4 + 4 * b1 * s**3 + 3 * b2 * s**2 + 2 * b3 * s + b4)
+            traj_dl.append(
+                5 * b0 * s**4 + 4 * b1 * s**3 + 3 * b2 * s**2 + 2 * b3 * s + b4
+            )
             traj_ddl.append(20 * b0 * s**3 + 12 * b1 * s**2 + 6 * b2 * s + 2 * b3)
 
         return (
@@ -470,7 +492,9 @@ class PolynomialPlanner:
 
         # factor for interpolation
         s_idx = np.argmax(CLCS.ref_pos > s) - 1
-        s_lambda = (s - CLCS.ref_pos[s_idx]) / (CLCS.ref_pos[s_idx + 1] - CLCS.ref_pos[s_idx])
+        s_lambda = (s - CLCS.ref_pos[s_idx]) / (
+            CLCS.ref_pos[s_idx + 1] - CLCS.ref_pos[s_idx]
+        )
 
         # compute orientation in curvilinear coordinate frame
         ref_theta = np.unwrap(CLCS.ref_theta)
@@ -483,18 +507,22 @@ class PolynomialPlanner:
         )
 
         # compute reference curvature
-        kr = (CLCS.ref_curv[s_idx + 1] - CLCS.ref_curv[s_idx]) * s_lambda + CLCS.ref_curv[s_idx]
+        kr = (
+            CLCS.ref_curv[s_idx + 1] - CLCS.ref_curv[s_idx]
+        ) * s_lambda + CLCS.ref_curv[s_idx]
         # compute reference curvature change
-        kr_d = (CLCS.ref_curv_d[s_idx + 1] - CLCS.ref_curv_d[s_idx]) * s_lambda + CLCS.ref_curv_d[s_idx]
+        kr_d = (
+            CLCS.ref_curv_d[s_idx + 1] - CLCS.ref_curv_d[s_idx]
+        ) * s_lambda + CLCS.ref_curv_d[s_idx]
 
         # compute initial ego curvature from initial steering angle
         kappa_0 = np.tan(steering_angle) / (whee_base)
 
         # compute d' and d'' -> derivation after arclength (s): see Eq. (A.3) and (A.5) in Diss. Werling
         d_p = (1 - kr * d) * np.tan(theta_cl)
-        d_pp = -(kr_d * d + kr * d_p) * np.tan(theta_cl) + ((1 - kr * d) / (math.cos(theta_cl) ** 2)) * (
-            kappa_0 * (1 - kr * d) / math.cos(theta_cl) - kr
-        )
+        d_pp = -(kr_d * d + kr * d_p) * np.tan(theta_cl) + (
+            (1 - kr * d) / (math.cos(theta_cl) ** 2)
+        ) * (kappa_0 * (1 - kr * d) / math.cos(theta_cl) - kr)
 
         # compute s dot (s_velocity) and s dot dot (s_acceleration) -> derivation after time
         s_velocity = x_0.velocity * math.cos(theta_cl) / (1 - kr * d)
@@ -507,7 +535,9 @@ class PolynomialPlanner:
 
         s_acceleration = acc
         s_acceleration -= (s_velocity**2 / math.cos(theta_cl)) * (
-            (1 - kr * d) * np.tan(theta_cl) * (kappa_0 * (1 - kr * d) / (math.cos(theta_cl)) - kr)
+            (1 - kr * d)
+            * np.tan(theta_cl)
+            * (kappa_0 * (1 - kr * d) / (math.cos(theta_cl)) - kr)
             - (kr_d * d + kr * d_p)
         )
         s_acceleration /= (1 - kr * d) / (math.cos(theta_cl))
@@ -558,7 +588,9 @@ class PolynomialPlanner:
                 dpp = 0.0
 
             s_idx = np.argmax(self._co.ref_pos > traj_s[i]) - 1
-            s_lambda = (traj_s[i] - self._co.ref_pos[s_idx]) / (self._co.ref_pos[s_idx + 1] - self._co.ref_pos[s_idx])
+            s_lambda = (traj_s[i] - self._co.ref_pos[s_idx]) / (
+                self._co.ref_pos[s_idx + 1] - self._co.ref_pos[s_idx]
+            )
 
             if traj_ds[i] > 0.001:
                 curv_theta = np.arctan2(dp, 1.0)
@@ -584,7 +616,11 @@ class PolynomialPlanner:
                     cart_theta = make_valid_orientation(cart_theta)
                     traj_theta.append(cart_theta)
                 else:
-                    (traj_theta.append(x_0.orientation) if i == 0 else traj_theta.append(traj_theta[-1]))
+                    (
+                        traj_theta.append(x_0.orientation)
+                        if i == 0
+                        else traj_theta.append(traj_theta[-1])
+                    )
                     curv_theta = traj_theta[-1] - interpolate_angle(
                         traj_s[i],
                         self._co.ref_pos[s_idx],
@@ -594,19 +630,21 @@ class PolynomialPlanner:
                     )
 
             # Interpolate curvature of reference path k_r at current position
-            k_r = (self._co.ref_curv[s_idx + 1] - self._co.ref_curv[s_idx]) * s_lambda + self._co.ref_curv[s_idx]
+            k_r = (
+                self._co.ref_curv[s_idx + 1] - self._co.ref_curv[s_idx]
+            ) * s_lambda + self._co.ref_curv[s_idx]
             # Interpolate curvature rate of reference path k_r_d at current position
-            k_r_d = (self._co.ref_curv_d[s_idx + 1] - self._co.ref_curv_d[s_idx]) * s_lambda + self._co.ref_curv_d[
-                s_idx
-            ]
+            k_r_d = (
+                self._co.ref_curv_d[s_idx + 1] - self._co.ref_curv_d[s_idx]
+            ) * s_lambda + self._co.ref_curv_d[s_idx]
 
             # compute global curvature (see appendix A of Moritz Werling's PhD thesis)
             oneKrD = 1 - k_r * traj_l[i]
             cosTheta = math.cos(curv_theta)
             tanTheta = np.tan(curv_theta)
-            cart_kappa = (dpp + (k_r * dp + k_r_d * traj_l[i]) * tanTheta) * cosTheta * (cosTheta / oneKrD) ** 2 + (
-                cosTheta / oneKrD
-            ) * k_r
+            cart_kappa = (
+                dpp + (k_r * dp + k_r_d * traj_l[i]) * tanTheta
+            ) * cosTheta * (cosTheta / oneKrD) ** 2 + (cosTheta / oneKrD) * k_r
             curv_kappa = cart_kappa - k_r
             traj_kappa.append(cart_kappa)
             # compute (global) Cartesian velocity
@@ -614,8 +652,11 @@ class PolynomialPlanner:
             traj_v.append(cart_v)
 
             # compute (global) Cartesian acceleration
-            cart_a = traj_dds[i] * oneKrD / cosTheta + ((traj_ds[i] ** 2) / cosTheta) * (
-                oneKrD * tanTheta * (cart_kappa * oneKrD / cosTheta - k_r) - (k_r_d * traj_l[i] + k_r * dp)
+            cart_a = traj_dds[i] * oneKrD / cosTheta + (
+                (traj_ds[i] ** 2) / cosTheta
+            ) * (
+                oneKrD * tanTheta * (cart_kappa * oneKrD / cosTheta - k_r)
+                - (k_r_d * traj_l[i] + k_r * dp)
             )
             traj_a.append(cart_a)
 
@@ -626,7 +667,9 @@ class PolynomialPlanner:
 
         return [np.array(item) for item in traj_list]
 
-    def _stitch_trajectory(self, s_0: np.ndarray = None, l_0: np.ndarray = None) -> np.ndarray:
+    def _stitch_trajectory(
+        self, s_0: np.ndarray = None, l_0: np.ndarray = None
+    ) -> np.ndarray:
         # find the match state as planning initial state
         if self.trajectory is not None:
             diff_s = self.trajectory.frenet_s - s_0
@@ -657,20 +700,26 @@ class PolynomialPlanner:
             else:
                 # reset the traj_s
                 traj_ds[target_idx:] = traj_ds[target_idx - 1]
-                traj_dds[target_idx:] = (traj_ds[target_idx:] - traj_ds[target_idx - 1 : -1]) / self._dt
+                traj_dds[target_idx:] = (
+                    traj_ds[target_idx:] - traj_ds[target_idx - 1 : -1]
+                ) / self._dt
 
             for i in range(target_idx + 1, len(traj_s)):
                 traj_s[i] = traj_s[i - 1] + traj_ds[target_idx] * self._dt
 
         return traj_s, traj_ds, traj_dds
 
-    def _valid_cart_traj(self, cartesian_traj: List[np.ndarray] = None, logger: logging.Logger = None):
+    def _valid_cart_traj(
+        self, cartesian_traj: List[np.ndarray] = None, logger: logging.Logger = None
+    ):
         # check kappa for cat traj
         MAX_KAPPA = 0.2
         traj_x, traj_y, traj_theta, traj_kappa, traj_v, traj_a = cartesian_traj
         max_kappa = np.abs(traj_kappa).max()
         if max_kappa > MAX_KAPPA:
-            logger.warning(f"Cartesian trajectory is invalid! kappa {max_kappa} is exceeded {MAX_KAPPA}!")
+            logger.warning(
+                f"Cartesian trajectory is invalid! kappa {max_kappa} is exceeded {MAX_KAPPA}!"
+            )
             return False
 
         return True
@@ -770,7 +819,9 @@ class RLReactivePlanner(ReactivePlanner):
         traj_dl = []
         traj_ddl = []
 
-        for cart_item, frenet_item in zip(cart_opt_traj.state_list, frenet_opt_traj.state_list):
+        for cart_item, frenet_item in zip(
+            cart_opt_traj.state_list, frenet_opt_traj.state_list
+        ):
             traj_x.append(cart_item.position[0])
             traj_y.append(cart_item.position[1])
             traj_theta.append(cart_item.orientation)

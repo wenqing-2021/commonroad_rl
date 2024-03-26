@@ -47,7 +47,9 @@ class ParamReward(Reward):
         return max_lat_acc
 
     @staticmethod
-    def calc_reference_offset(max_mean_offset: float = None, trajectory: PlanTrajectory = None):
+    def calc_reference_offset(
+        max_mean_offset: float = None, trajectory: PlanTrajectory = None
+    ):
         """
         Calculate the offset of the trajectory to the reference trajectory
         """
@@ -86,13 +88,16 @@ class ParamReward(Reward):
 
         ## comfort reward
         # jerk
-        jerk_reward = self.comfort_config["jerk_reward_scale"] * ParamReward.calc_jerk(trajectory)
+        jerk_reward = self.comfort_config["jerk_reward_scale"] * ParamReward.calc_jerk(
+            trajectory
+        )
         # lat_acc
         max_lat_acc = ParamReward.calc_lat_acc(trajectory)
         lat_acc_reward = (
             0.0
             if max_lat_acc < MAX_LAT_ACC
-            else self.comfort_config["lat_acc_reward_scale"] * (max_lat_acc - MAX_LAT_ACC)
+            else self.comfort_config["lat_acc_reward_scale"]
+            * (max_lat_acc - MAX_LAT_ACC)
         )
         # reference offset
         max_offset = self.comfort_config["max_allowable_reference_offset"]
@@ -100,13 +105,23 @@ class ParamReward(Reward):
             "reference_offset_reward_scale"
         ] * ParamReward.calc_reference_offset(max_offset, trajectory)
         # yaw rate
-        yaw_rate_reward = self.comfort_config["omega_reward_scale"] * ParamReward.calc_yaw_rate(trajectory)
+        yaw_rate_reward = self.comfort_config[
+            "omega_reward_scale"
+        ] * ParamReward.calc_yaw_rate(trajectory)
         # kappa
         max_kappa = ParamReward.calc_kappa(trajectory)
         kappa_reward = (
-            0.0 if max_kappa < MAX_KAPPA else self.comfort_config["kappa_reward_scale"] * (max_kappa - MAX_KAPPA)
+            0.0
+            if max_kappa < MAX_KAPPA
+            else self.comfort_config["kappa_reward_scale"] * (max_kappa - MAX_KAPPA)
         )
-        comfort_reward = jerk_reward + lat_acc_reward + reference_offset_reward + yaw_rate_reward + kappa_reward
+        comfort_reward = (
+            jerk_reward
+            + lat_acc_reward
+            + reference_offset_reward
+            + yaw_rate_reward
+            + kappa_reward
+        )
 
         final_reward -= comfort_reward
 
@@ -114,7 +129,8 @@ class ParamReward(Reward):
         max_rel_lead_v = max(observation_dict["lane_based_v_rel"][-3:])
         max_lead_v = max_rel_lead_v + observation_dict["v_ego"]
         v_reward = (
-            self.efficiency_config["velocity_reward_scale"] * np.clip(observation_dict["v_ego"] / max_lead_v, 0, 1)[0]
+            self.efficiency_config["velocity_reward_scale"]
+            * np.clip(observation_dict["v_ego"] / (max_lead_v + 1e-3), 0, 1)[0]
         )
 
         time_reward = self.efficiency_config["reward_time_step"]
@@ -130,6 +146,9 @@ class ParamReward(Reward):
 
         goal_lon_dis = observation_dict["distance_goal_long_advance"]
         goal_lat_dis = observation_dict["distance_goal_lat_advance"]
+
+        if ego_action.vehicle.current_time_step % 5 == 0:
+            goal_reward += self.goal_reach_config["forward_reward_scale"]
 
         goal_reward += (
             self.goal_reach_config["goal_long_advance_reward_scale"] * goal_lon_dis

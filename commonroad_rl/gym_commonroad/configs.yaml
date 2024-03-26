@@ -5,20 +5,20 @@ env_configs:
   vehicle_params:
     vehicle_type: 2  # 1: FORD_ESCORT; 2: BMW_320i; 3: VW_VANAGON
     vehicle_model: 8  # 0: PM, 1: ST, 2: KS, 3: MB, 4: KST, 5: YawRate, 6: QP, 7: PMNonlinear, 8: STL (1,3,4 are not implemented)
-
+  render_mode: human
   # action configuration
   action_configs:
     action_type: parameters # discrete # continuous # parameters
     action_base: acceleration # acceleration; jerk (For ContinuousAction)
     long_steps: 5
-    lat_steps: 5
+    lat_steps: 6
     planning_horizon: 1. # unit [s] not use
     continuous_collision_checking: True # True # TODO: SUMO scenarios do not support continuous collision check
     # For parameters action (polynomial function trajectory)
     parameters_range:
       max_plan_time: 1.5 # unit [s]
-      max_long_v: 5.0 # unit [m/s]
-      min_long_v: -5.0 # unit [m/s]
+      max_long_v: 1.5 # unit [m/s]
+      min_long_v: -1.5 # unit [m/s]
       max_lat_dis: 3.0 # unit [m]
     control_frequency: 50 # hz
     control_config:
@@ -225,25 +225,27 @@ env_configs:
       reward_friction_violation: 0.
 
     param_reward:
-      infeasible_reward: -1000.
+      infeasible_reward: -500.
       comfortable:
-        jerk_reward_scale: 2.5
-        kappa_reward_scale: 5.0
+        jerk_reward_scale: 0.1
+        kappa_reward_scale: .5
         lat_acc_reward_scale: 0.5
-        omega_reward_scale: 0.0 # yaw_rate
-        reference_offset_reward_scale: 0.5
+        omega_reward_scale: 0.1 # yaw_rate
+        reference_offset_reward_scale: 0.2
         max_allowable_reference_offset: 0.0
       efficiency:
-        velocity_reward_scale: 0.
+        velocity_reward_scale: 5.
         reward_time_step: -5.
       goal_reach:
         reward_goal_reached: 2000
-        goal_long_advance_reward_scale: 50 # advance means the delta dis between current and last step
-        goal_lat_advance_reward_scale: 50
+        forward_reward_scale: 50.0 # get it by every 5 steps
+        goal_long_advance_reward_scale: 5. # advance means the delta dis between current and last step
+        goal_lat_advance_reward_scale: 5.
 
   cost_configs:
     use_cost: True
     sparse_cost:
+      edit_cost_scale: 5.
       cost_collision: 500.
       cost_off_road: 500.
       cost_time_out: 10.

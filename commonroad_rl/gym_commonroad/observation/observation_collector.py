@@ -83,13 +83,17 @@ class ObservationCollector:
         self._cache_lanelet_polygons_sg_accel_struct = dict()
         self._cache_scenario_ref_path_dict = dict()
         self._connected_lanelet_dict: Dict[int : Set[int]] = dict()
-        self._cache_collision_checker_templates: Dict[str : pycrcc.CollisionChecker] = dict()
+        self._cache_collision_checker_templates: Dict[str : pycrcc.CollisionChecker] = (
+            dict()
+        )
 
         self.observation_space = self._build_observation_space()
 
         self.navigator: Navigator = None
         self._use_cache_navigator = configs.get("cache_navigators", False)
-        self._continous_collision_check = configs["action_configs"].get("continuous_collision_checking", True)
+        self._continous_collision_check = configs["action_configs"].get(
+            "continuous_collision_checking", True
+        )
         self._cache_navigator = dict()
         self.episode_length = None
         self._enable_conflit_zone = (
@@ -111,9 +115,15 @@ class ObservationCollector:
         observation_space_dict = OrderedDict()
         observation_space_dict.update(self.goal_observation.build_observation_space())
         observation_space_dict.update(self.ego_observation.build_observation_space())
-        observation_space_dict.update(self.surrounding_observation.build_observation_space())
-        observation_space_dict.update(self.lanelet_network_observation.build_observation_space())
-        observation_space_dict.update(self.traffic_sign_observation.build_observation_space())
+        observation_space_dict.update(
+            self.surrounding_observation.build_observation_space()
+        )
+        observation_space_dict.update(
+            self.lanelet_network_observation.build_observation_space()
+        )
+        observation_space_dict.update(
+            self.traffic_sign_observation.build_observation_space()
+        )
 
         self.observation_space_dict = observation_space_dict
         if self._flatten_observation:
@@ -122,11 +132,17 @@ class ObservationCollector:
                 lower_bounds = np.concatenate((lower_bounds, space.low))
                 upper_bounds = np.concatenate((upper_bounds, space.high))
             self.observation_space_size = lower_bounds.shape[0]
-            observation_space = gym.spaces.Box(low=lower_bounds, high=upper_bounds, dtype=np.float64)
-            LOGGER.debug(f"Size of flattened observation space: {self.observation_space_size}")
+            observation_space = gym.spaces.Box(
+                low=lower_bounds, high=upper_bounds, dtype=np.float64
+            )
+            LOGGER.debug(
+                f"Size of flattened observation space: {self.observation_space_size}"
+            )
         else:
             observation_space = gym.spaces.Dict(self.observation_space_dict)
-            LOGGER.debug(f"Length of dictionary observation space: {len(self.observation_space_dict)}")
+            LOGGER.debug(
+                f"Length of dictionary observation space: {len(self.observation_space_dict)}"
+            )
 
         return observation_space
 
@@ -145,12 +161,14 @@ class ObservationCollector:
             self._goal_region: GoalRegion = planning_problem.goal
             if reset_config["enlarge_goal"]:
                 try:
-                    self._goal_region.state_list[0].position.width *= 1.5
-                    self._goal_region.state_list[0].position.length *= 1.5
+                    self._goal_region.state_list[0].position.width *= 3.0
+                    self._goal_region.state_list[0].position.length *= 3.0
                 except:
                     LOGGER.debug("goal region is not a rectangle, could not enlarge it")
                     pass
-            self.episode_length = max(s.time_step.end for s in self._goal_region.state_list)
+            self.episode_length = max(
+                s.time_step.end for s in self._goal_region.state_list
+            )
         else:
             self._goal_region = None
             self.episode_length = None
@@ -166,20 +184,33 @@ class ObservationCollector:
         self.goal_observation.observation_history_dict = dict()
 
         # dictionary is not set anywhere
-        if self._cache_scenario_ref_path_dict.get(str(self._scenario.scenario_id), None) is None:
+        if (
+            self._cache_scenario_ref_path_dict.get(
+                str(self._scenario.scenario_id), None
+            )
+            is None
+        ):
             self._cache_scenario_ref_path_dict[str(self._scenario.scenario_id)] = dict()
 
-        self._connected_lanelet_dict: Dict[int : Set[int]] = reset_config["connected_lanelet_dict"]
+        self._connected_lanelet_dict: Dict[int : Set[int]] = reset_config[
+            "connected_lanelet_dict"
+        ]
 
         self._road_edge = {
-            "left_road_edge_lanelet_id_dict": reset_config["left_road_edge_lanelet_id_dict"],
-            "right_road_edge_lanelet_id_dict": reset_config["right_road_edge_lanelet_id_dict"],
+            "left_road_edge_lanelet_id_dict": reset_config[
+                "left_road_edge_lanelet_id_dict"
+            ],
+            "right_road_edge_lanelet_id_dict": reset_config[
+                "right_road_edge_lanelet_id_dict"
+            ],
             "left_road_edge_dict": reset_config["left_road_edge_dict"],
             "right_road_edge_dict": reset_config["right_road_edge_dict"],
             "boundary_collision_object": reset_config["boundary_collision_object"],
         }
         # TODO: make this usable for more than the inD data set
-        if self._enable_conflit_zone and scenario.scenario_id.__str__().startswith("DEU_AAH"):
+        if self._enable_conflit_zone and scenario.scenario_id.__str__().startswith(
+            "DEU_AAH"
+        ):
             self.conflict_zone.reset(scenario)
 
     @property
@@ -187,7 +218,9 @@ class ObservationCollector:
         return self._road_edge
 
     @staticmethod
-    def compute_convex_hull_circle(radius, previous_position, current_position) -> pycrcc.RectOBB:
+    def compute_convex_hull_circle(
+        radius, previous_position, current_position
+    ) -> pycrcc.RectOBB:
         """Compute obb based on last and current position to
         approximate the area covered by the collision circle between
         the last and current timestep.
@@ -198,7 +231,9 @@ class ObservationCollector:
         d_normed = direction / direction_length
         orientation = np.arctan2(d_normed[1], d_normed[0])
 
-        return pycrcc.RectOBB(direction_length / 2 + radius, radius, orientation, position[0], position[1])
+        return pycrcc.RectOBB(
+            direction_length / 2 + radius, radius, orientation, position[0], position[1]
+        )
 
     @staticmethod
     def create_convex_hull_collision_circle(dynamic_obstacle: DynamicObstacle):
@@ -207,7 +242,9 @@ class ObservationCollector:
         initial_time_step = dynamic_obstacle.initial_state.time_step
         tvo = pycrcc.TimeVariantCollisionObject(initial_time_step)
         if dynamic_obstacle.prediction is not None:
-            for time_step in range(initial_time_step, dynamic_obstacle.prediction.final_time_step):
+            for time_step in range(
+                initial_time_step, dynamic_obstacle.prediction.final_time_step
+            ):
                 previous_state = dynamic_obstacle.state_at_time(time_step)
                 state = dynamic_obstacle.state_at_time(time_step + 1)
                 convex_obb = ObservationCollector.compute_convex_hull_circle(
@@ -233,29 +270,35 @@ class ObservationCollector:
         cc = pycrcc.CollisionChecker()
         for co in scenario.dynamic_obstacles:
             if isinstance(co.obstacle_shape, Rectangle):
-                collision_object = create_collision_object(co, params, collision_object_func)
+                collision_object = create_collision_object(
+                    co, params, collision_object_func
+                )
                 if co.prediction is not None:
                     # TODO: remove if when https://gitlab.lrz.de/cps/commonroad-drivability-checker/-/issues/16 is fixed
                     (
                         collision_object,
                         err,
-                    ) = trajectory_queries.trajectory_preprocess_obb_sum(collision_object)
+                    ) = trajectory_queries.trajectory_preprocess_obb_sum(
+                        collision_object
+                    )
                     if err:
                         raise Exception(
                             "<ObservationCollector.create_collision_checker_scenario> Error create convex hull"
                         )
             elif isinstance(co.obstacle_shape, Circle):
-                collision_object = ObservationCollector.create_convex_hull_collision_circle(co)
+                collision_object = (
+                    ObservationCollector.create_convex_hull_collision_circle(co)
+                )
             else:
-                raise NotImplementedError(f"Unsupported shape for convex hull collision object: {co.obstacle_shape}")
+                raise NotImplementedError(
+                    f"Unsupported shape for convex hull collision object: {co.obstacle_shape}"
+                )
             cc.add_collision_object(collision_object)
 
         shape_group = pycrcc.ShapeGroup()
         for co in scenario.static_obstacles:
-            collision_object = (
-                commonroad_dc.collision.collision_detection.pycrcc_collision_dispatch.create_collision_object(
-                    co, params, collision_object_func
-                )
+            collision_object = commonroad_dc.collision.collision_detection.pycrcc_collision_dispatch.create_collision_object(
+                co, params, collision_object_func
             )
             if isinstance(collision_object, pycrcc.ShapeGroup):
                 for shape in collision_object.unpack():
@@ -265,18 +308,24 @@ class ObservationCollector:
         cc.add_collision_object(shape_group)
         return cc
 
-    def _update_collision_checker(self, collision_checker=None, clone_collision_checker: bool = True):
+    def _update_collision_checker(
+        self, collision_checker=None, clone_collision_checker: bool = True
+    ):
         if collision_checker is None:
             if clone_collision_checker:
                 full_reset = False
-                cc_template = self._cache_collision_checker_templates.get(self._benchmark_id, None)
+                cc_template = self._cache_collision_checker_templates.get(
+                    self._benchmark_id, None
+                )
                 if cc_template is None:
                     cc_template = self.create_collision_checker_scenario(
                         self._scenario,
                         continous_collision_check=self._continous_collision_check,
                     )
                     if not full_reset:
-                        self._cache_collision_checker_templates[self._benchmark_id] = cc_template
+                        self._cache_collision_checker_templates[self._benchmark_id] = (
+                            cc_template
+                        )
                 self._collision_checker = cc_template.clone()
             else:
                 self._collision_checker = self.create_collision_checker_scenario(
@@ -300,7 +349,9 @@ class ObservationCollector:
         self._create_navigator()
 
         # calculate all observations
-        observation_dict_ego = self.ego_observation.observe(self.ego_lanelet, ego_vehicle, self.episode_length)
+        observation_dict_ego = self.ego_observation.observe(
+            self.ego_lanelet, ego_vehicle, self.episode_length
+        )
         observation_dict_goal = self.goal_observation.observe(
             self._ego_state,
             goal=self._goal_region,
@@ -345,9 +396,15 @@ class ObservationCollector:
         observation_dict.update(observation_dict_goal)
         observation_dict.update(observation_dict_traffic_sign)
 
-        assert len(list(observation_dict.keys())) == len(list(self.observation_space_dict.keys()))
-        self.observation_dict = OrderedDict((k, observation_dict[k]) for k in self.observation_space_dict.keys())
-        assert list(self.observation_dict.keys()) == list(self.observation_space_dict.keys())
+        assert len(list(observation_dict.keys())) == len(
+            list(self.observation_space_dict.keys())
+        )
+        self.observation_dict = OrderedDict(
+            (k, observation_dict[k]) for k in self.observation_space_dict.keys()
+        )
+        assert list(self.observation_dict.keys()) == list(
+            self.observation_space_dict.keys()
+        )
 
         if self._flatten_observation:
             observation_vector = np.zeros(self.observation_space.shape)
@@ -362,7 +419,9 @@ class ObservationCollector:
 
     def _update_ego_lanelet_and_local_ccosy(self):
         # update ego lanelet
-        lanelet_polygons, lanelet_polygons_sg = self._get_lanelet_polygons(str(self._scenario.scenario_id))
+        lanelet_polygons, lanelet_polygons_sg = self._get_lanelet_polygons(
+            str(self._scenario.scenario_id)
+        )
         self._ego_lanelet_ids = self.sorted_lanelets_by_state(
             self._scenario, self._ego_state, lanelet_polygons, lanelet_polygons_sg
         )
@@ -371,8 +430,12 @@ class ObservationCollector:
         else:
             self.ego_lanelet_id = ego_lanelet_id = self._ego_lanelet_ids[0]
 
-        self.ego_lanelet = self._scenario.lanelet_network.find_lanelet_by_id(ego_lanelet_id)
-        ref_path_dict = self._cache_scenario_ref_path_dict[str(self._scenario.scenario_id)]
+        self.ego_lanelet = self._scenario.lanelet_network.find_lanelet_by_id(
+            ego_lanelet_id
+        )
+        ref_path_dict = self._cache_scenario_ref_path_dict[
+            str(self._scenario.scenario_id)
+        ]
 
         # update local ccosy
         if self.local_ccosy is None:
@@ -433,7 +496,9 @@ class ObservationCollector:
             )
             render.dynamic_artists.append(line)
 
-    def _get_lanelet_polygons(self, meta_scenario_id) -> Tuple[List[Tuple[int, Polygon]], pycrcc.ShapeGroup]:
+    def _get_lanelet_polygons(
+        self, meta_scenario_id
+    ) -> Tuple[List[Tuple[int, Polygon]], pycrcc.ShapeGroup]:
         """
         returns lanelet_polygons and the shape group of the polygons
         # TODO: fix meta_scenario_id
@@ -444,8 +509,12 @@ class ObservationCollector:
             lanelet+polygons_sg: ShapeGroup of all the polygons of all the lanelets
         """
         # TODO: pre store polygon for all maps
-        lanelet_polygons = self._cache_lanelet_polygons_accel_struct.get(meta_scenario_id, None)
-        lanelet_polygons_sg = self._cache_lanelet_polygons_sg_accel_struct.get(meta_scenario_id, None)
+        lanelet_polygons = self._cache_lanelet_polygons_accel_struct.get(
+            meta_scenario_id, None
+        )
+        lanelet_polygons_sg = self._cache_lanelet_polygons_sg_accel_struct.get(
+            meta_scenario_id, None
+        )
 
         if lanelet_polygons is None:
             lanelet_polygons = [
@@ -455,8 +524,12 @@ class ObservationCollector:
             lanelet_polygons_sg = pycrcc.ShapeGroup()
             for l_id, poly in lanelet_polygons:
                 lanelet_polygons_sg.add_shape(create_collision_object(poly))
-            self._cache_lanelet_polygons_sg_accel_struct[meta_scenario_id] = lanelet_polygons_sg
-            self._cache_lanelet_polygons_accel_struct[meta_scenario_id] = lanelet_polygons
+            self._cache_lanelet_polygons_sg_accel_struct[meta_scenario_id] = (
+                lanelet_polygons_sg
+            )
+            self._cache_lanelet_polygons_accel_struct[meta_scenario_id] = (
+                lanelet_polygons
+            )
         return lanelet_polygons, lanelet_polygons_sg
 
     @staticmethod
@@ -476,8 +549,14 @@ class ObservationCollector:
         :return: The list of lanelet ids sorted by relative orientations, the nearest lanelet is the first elements
         """
         return Navigator.sorted_lanelet_ids(
-            ObservationCollector._related_lanelets_by_state(state, lanelet_polygons, lanelet_polygons_sg),
-            state.orientation if hasattr(state, "orientation") else np.arctan2(state.velocity_y, state.velocity),
+            ObservationCollector._related_lanelets_by_state(
+                state, lanelet_polygons, lanelet_polygons_sg
+            ),
+            (
+                state.orientation
+                if hasattr(state, "orientation")
+                else np.arctan2(state.velocity_y, state.velocity)
+            ),
             state.position,
             scenario,
         )
@@ -533,16 +612,22 @@ class ObservationCollector:
         if ref_path_dict is None:
             ref_path_dict = dict()
 
-        ref_path, ref_merged_lanelet, curvi_cosy = ref_path_dict.get(ego_vehicle_lanelet_id, (None, None, None))
+        ref_path, ref_merged_lanelet, curvi_cosy = ref_path_dict.get(
+            ego_vehicle_lanelet_id, (None, None, None)
+        )
 
         if curvi_cosy is None:
-            for lanelet in lanelet_network.lanelets:  # iterate in all lanelet in this scenario
+            for (
+                lanelet
+            ) in lanelet_network.lanelets:  # iterate in all lanelet in this scenario
                 if lanelet.lanelet_id == ego_vehicle_lanelet_id and (
                     not lanelet.predecessor and not lanelet.successor
                 ):  # the lanelet is a lane itself
                     ref_path = lanelet.center_vertices
                     ref_merged_lanelet = lanelet
-                elif not lanelet.predecessor:  # the lanelet is the start of a lane, the lane can be created from here
+                elif (
+                    not lanelet.predecessor
+                ):  # the lanelet is the start of a lane, the lane can be created from here
                     # TODO: cache merged lanelets in pickle or dict
                     (
                         merged_lanelet_list,
@@ -550,7 +635,9 @@ class ObservationCollector:
                     ) = Lanelet.all_lanelets_by_merging_successors_from_lanelet(
                         lanelet, lanelet_network, max_lane_merge_range
                     )
-                    for merged_lanelet, sub_lanelet_ids in zip(merged_lanelet_list, sub_lanelet_ids_list):
+                    for merged_lanelet, sub_lanelet_ids in zip(
+                        merged_lanelet_list, sub_lanelet_ids_list
+                    ):
                         if ego_vehicle_lanelet_id in sub_lanelet_ids:
                             ref_path = merged_lanelet.center_vertices
                             ref_merged_lanelet = merged_lanelet
@@ -575,7 +662,9 @@ class ObservationCollector:
         if not self.navigator:
             # Check cache first
             if self._use_cache_navigator:
-                key = ObservationCollector.get_navigator_cache_key(self._scenario, self._planning_problem)
+                key = ObservationCollector.get_navigator_cache_key(
+                    self._scenario, self._planning_problem
+                )
                 if key in self._cache_navigator:
                     self.navigator = self._cache_navigator[key]
                     return self._cache_navigator[key]
@@ -601,7 +690,9 @@ class ObservationCollector:
 
     @staticmethod
     def get_navigator_cache_key(scenario: Scenario, planning_problem: PlanningProblem):
-        return str(scenario.scenario_id) + "#" + str(planning_problem.planning_problem_id)
+        return (
+            str(scenario.scenario_id) + "#" + str(planning_problem.planning_problem_id)
+        )
 
 
 if __name__ == "__main__":

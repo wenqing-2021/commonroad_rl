@@ -18,7 +18,10 @@ try:
             "visualization_path": "output/gym_commonroad/viz",
             "config_file": "commonroad_rl/gym_commonroad/configs.yaml",
             "logging_mode": 4,
+            "use_safe_rl": False,
+            "use_reach_set": False,
             "test_env": False,
+            "render_mode": "human",
         },
     )
 except gym.error.Error:
