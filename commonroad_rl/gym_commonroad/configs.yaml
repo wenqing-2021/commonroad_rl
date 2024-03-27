@@ -91,7 +91,7 @@ env_configs:
     # TODO: remove after other goal observations (velocity interval and orientation interval) are implemented
     relax_is_goal_reached: True
     # goal observations
-    enlarge_goal: True # False. Enlarge 1.5 times the width and length of the goal rectangle.
+    enlarge_goal: False # False. Enlarge 1.5 times the width and length of the goal rectangle.
     observe_distance_goal_long: True
     observe_distance_goal_lat: True
     observe_distance_goal_long_lane: False
