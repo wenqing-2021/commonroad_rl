@@ -16,7 +16,7 @@ env_configs:
     continuous_collision_checking: True # True # TODO: SUMO scenarios do not support continuous collision check
     # For parameters action (polynomial function trajectory)
     parameters_range:
-      max_plan_time: 1.5 # unit [s]
+      max_plan_time: 2.0 # unit [s]
       max_long_v: 3.0 # unit [m/s]
       min_long_v: -3.0 # unit [m/s]
       max_lat_dis: 3.0 # unit [m]

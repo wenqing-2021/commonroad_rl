@@ -392,8 +392,12 @@ class ParameterAction(ContinuousAction):
         self.planner.reset(self.params_range["max_plan_time"], self._scenario_dt, local_ccosy)
         self._last_matched_state = None
         self.edit_cost = None
-        goal_s, goal_l = local_ccosy.convert_to_curvilinear_coords(goal_region[0], goal_region[1])
-        self.goal_region = (goal_s, goal_l)
+        try:
+            goal_s, goal_l = local_ccosy.convert_to_curvilinear_coords(goal_region[0], goal_region[1])
+            self.goal_region = (goal_s, goal_l)
+        except:
+            self.goal_region = None
+
         self.could_to_goal = False
         self.not_plan = False
         self.trajectory_history.clear()
@@ -475,7 +479,7 @@ class ParameterAction(ContinuousAction):
         else:
             delta_v = 0
         rescaled_action = self.rescale_action(action)
-        rescaled_action[0] = delta_v
+        rescaled_action[0] = delta_v / 2
         refine_plan_trajectory: PlanTrajectory = None
 
         # # check if could reach the goal region

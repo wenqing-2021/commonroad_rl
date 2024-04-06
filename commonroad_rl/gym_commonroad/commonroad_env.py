@@ -602,6 +602,7 @@ class CommonroadEnv(gym.Env):
             self.draw_params.time_begin = self.current_step
             self.draw_params.time_end = self.current_step
         # Draw scenario, goal, sensing range and detected obstacles
+        self.draw_params.lanelet_network.lanelet.show_label = True
         self.scenario.draw(self.cr_render, self.draw_params)
 
         # Draw certain objects only once
@@ -973,13 +974,13 @@ class CommonroadEnv(gym.Env):
                     # plt.figure(figsize=(width_inch, height_inch))
                     plt.rcParams["font.family"] = "Times New Roman, SimSun"
                     vehicle_position, vehicle_head = render_dict["vehicle_pos"]
-                    front_x = 30 + vehicle_position[0]
-                    back_x = -15 + vehicle_position[0]
+                    front_x = 35 + vehicle_position[0]
+                    back_x = -10 + vehicle_position[0]
 
                     min_x = min(front_x, back_x)
                     max_x = max(front_x, back_x)
-                    min_y = vehicle_position[1] - 15
-                    max_y = vehicle_position[1] + 15
+                    min_y = vehicle_position[1] - 5
+                    max_y = vehicle_position[1] + 10
                     plt.xlim(min_x, max_x)
                     plt.ylim(min_y, max_y)
                     plt.xlabel("X [m]", fontsize=label_size, fontname="Times New Roman")
