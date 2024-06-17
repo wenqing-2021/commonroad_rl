@@ -285,7 +285,7 @@ class PolynomialPlanner:
 
         cart_traj = self._get_cart_traj(valid_frenet_traj)
 
-        if cart_traj is None or cart_traj[0].shape[0] != valid_frenet_traj[0].shape[0]:
+        if cart_traj is None:
             # plt.figure(2)
             # plt.plot(traj_s)
             # plt.title("s-t")
@@ -308,13 +308,17 @@ class PolynomialPlanner:
             # plt.plot(traj_ddl)
             # plt.title("ddl-t")
             # plt.show()
-            logger.warning("Cartesian trajectory is None or length is not equal to Frenet trajectory!")
+            logger.warning("Cartesian trajectory is None")
             return None
 
         if not self._valid_cart_traj(cartesian_traj=cart_traj, logger=logger):
             return None
 
-        trajectory = PlanTrajectory(frenet_traj=frenet_traj, cart_traj=cart_traj, dt=self._dt)
+        trajectory = PlanTrajectory(frenet_traj=valid_frenet_traj, cart_traj=cart_traj, dt=self._dt)
+
+        if trajectory.frenet_s.shape[0] != trajectory.cart_x.shape[0]:
+            logger.warning("The shape of the trajectory is not consistent")
+            return None
 
         self._trajectory = trajectory
 

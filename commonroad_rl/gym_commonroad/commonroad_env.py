@@ -962,8 +962,8 @@ class CommonroadEnv(gym.Env):
                     # filename=render_dict["filename"],
                     keep_static_artists=render_dict["keep_static_artists"],
                 )
-                save_true = kwargs.get("save_true", False)
-                if save_true:
+                save_fig = kwargs.get("save_fig", False)
+                if save_fig:
                     width_cm = 12
                     height_cm = 9
                     width_inch = width_cm / 2.54
